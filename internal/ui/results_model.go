@@ -30,6 +30,7 @@ func (r Results) Select(i int) Results {
 }
 
 func (r Results) Tracks() []provider.Track { return r.tracks }
+func (r Results) Selected() int            { return r.selected }
 
 // END: Results
 
@@ -42,10 +43,16 @@ type moreLoadedMsg struct {
 	err    error
 }
 
-// Update loads the next page on Enter over "load more..." and appends it when it arrives.
+// Update moves the selection on ↑/↓ and loads the next page on Enter over "load more..." and appends it when it arrives.
 func (r Results) Update(msg tea.Msg) (Results, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
+		if msg.Code == tea.KeyDown && len(r.tracks) > 0 && r.selected < len(r.tracks) {
+			r.selected++
+		}
+		if msg.Code == tea.KeyUp && r.selected > 0 {
+			r.selected--
+		}
 		if msg.Code == tea.KeyEnter && len(r.tracks) > 0 && r.selected == len(r.tracks) {
 			p, q, page := r.provider, r.query, r.page+1
 			return r, func() tea.Msg {

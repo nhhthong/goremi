@@ -1,16 +1,24 @@
-// Entry point of the goremi binary. Placeholder: only keeps the TUI libraries in go.mod.
+// Entry point of the goremi binary: runs the application with the YouTube provider.
 package main
 
 import (
+	"fmt"
+	"os"
+
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
+
+	"goremi/internal/app"
+	"goremi/internal/provider"
 )
 
-// START: Placeholder main
+// START: main
 
-var _ = tea.NewProgram
-var _ = lipgloss.NewStyle
+func main() {
+	p := tea.NewProgram(app.New(&provider.YouTubeProvider{}))
+	if _, err := p.Run(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
 
-func main() {}
-
-// END: Placeholder main
+// END: main

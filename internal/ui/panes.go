@@ -11,3 +11,10 @@ func JoinPanes(list, pane string) string {
 }
 
 // END: JoinPanes
+
+// START: PlayerPanel
+
+// PlayerPanel is the right-hand panel; until a track has played it shows the Goremi art.
+func PlayerPanel() string { return Logo }
+
+// END: PlayerPanel
