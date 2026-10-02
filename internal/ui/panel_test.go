@@ -6,14 +6,16 @@ import (
 	"testing"
 
 	"charm.land/lipgloss/v2"
+
+	"goremi/internal/ui/theme"
 )
 
 // START: TestPanelIsMultiLineArt
 
 func TestPanelIsMultiLineArt(t *testing.T) {
-	p := PlayerPanel()
+	p := PlayerPanel(theme.Dark())
 	if p == "" || len(strings.Split(p, "\n")) < 3 {
-		t.Fatalf("PlayerPanel() = %q, want at least 3 lines", p)
+		t.Fatalf("PlayerPanel(theme.Dark()) = %q, want at least 3 lines", p)
 	}
 }
 
@@ -22,7 +24,7 @@ func TestPanelIsMultiLineArt(t *testing.T) {
 // START: TestPanelFitsWidth
 
 func TestPanelFitsWidth(t *testing.T) {
-	for i, l := range strings.Split(PlayerPanel(), "\n") {
+	for i, l := range strings.Split(PlayerPanel(theme.Dark()), "\n") {
 		if w := lipgloss.Width(l); w > 40 {
 			t.Errorf("line %d is %d columns wide, want at most 40", i, w)
 		}

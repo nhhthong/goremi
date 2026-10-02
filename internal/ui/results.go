@@ -4,7 +4,10 @@ package ui
 import (
 	"strings"
 
+	"charm.land/lipgloss/v2"
+
 	"goremi/internal/provider"
+	"goremi/internal/ui/theme"
 )
 
 // START: RenderResults
@@ -39,3 +42,24 @@ func RenderResultsMore(tracks []provider.Track, selected int) string {
 }
 
 // END: RenderResultsMore
+
+// START: PaintResults
+
+// PaintResults colours a rendered list: the selected line bold Accent on Selected, "load more..." Muted, the track lines Foreground.
+// tracks is the number of track lines; the lines after them are the "load more..." line.
+func PaintResults(t theme.Theme, rendered string, selected, tracks int) string {
+	lines := strings.Split(rendered, "\n")
+	for i, l := range lines {
+		style := lipgloss.NewStyle().Foreground(lipgloss.Color(t.Foreground))
+		switch {
+		case i == selected:
+			style = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(t.Accent)).Background(lipgloss.Color(t.Selected))
+		case i >= tracks:
+			style = lipgloss.NewStyle().Foreground(lipgloss.Color(t.Muted))
+		}
+		lines[i] = style.Render(l)
+	}
+	return strings.Join(lines, "\n")
+}
+
+// END: PaintResults

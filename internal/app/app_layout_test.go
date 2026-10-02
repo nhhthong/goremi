@@ -85,7 +85,7 @@ func TestNoPanelBeforeSize(t *testing.T) {
 
 // START: stacked layout
 
-func isSearch(l string) bool { return strings.HasPrefix(l, "Search:") }
+func isSearch(l string) bool { return strings.HasPrefix(plain(l), "Search:") }
 func isArt(l string) bool    { return strings.Contains(l, art0()) }
 func isTrackA(l string) bool { return strings.Contains(l, "▶ A") }
 
@@ -115,7 +115,11 @@ func TestResizeSwitchesLayout(t *testing.T) {
 func TestNarrowNoTracksOnlyArt(t *testing.T) {
 	lines := viewLines(sized(New(fakeProvider{}), 60))
 	s := lineIndex(lines, isSearch)
-	if got := lines[s+1:]; !reflect.DeepEqual(got, artLines()) {
+	got := lines[s+1:]
+	for i := range got {
+		got[i] = plain(got[i])
+	}
+	if !reflect.DeepEqual(got, artLines()) {
 		t.Fatalf("lines after Search: = %q, want only the art %q", got, artLines())
 	}
 }
