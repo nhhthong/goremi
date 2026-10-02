@@ -15,6 +15,8 @@ type ThemeModel struct {
 	path   string
 	picker ui.ThemePicker
 	chosen string
+	// err is the error of the last failed save.
+	err error
 }
 
 // NewThemeModel starts on the theme the config file at path names (dark without a config).
@@ -35,7 +37,10 @@ func (m ThemeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	switch {
 	case k.Code == tea.KeyEnter:
-		if name := m.picker.Selected(); SaveTheme(m.path, name) == nil {
+		name := m.picker.Selected()
+		if err := SaveTheme(m.path, name); err != nil {
+			m.err = err
+		} else {
 			m.chosen = name
 		}
 		return m, tea.Quit

@@ -54,8 +54,8 @@ func TestUpStopsAtFirst(t *testing.T) {
 // START: TestDownReachesLoadMore
 
 func TestDownReachesLoadMore(t *testing.T) {
-	if got := pressed(abc(), 2, tea.KeyDown); got != 3 {
-		t.Fatalf("Selected() = %d, want 3", got)
+	if got := pressed(tenTracks(), 9, tea.KeyDown); got != 10 {
+		t.Fatalf("Selected() = %d, want 10", got)
 	}
 }
 
@@ -64,8 +64,8 @@ func TestDownReachesLoadMore(t *testing.T) {
 // START: TestDownStopsAtLoadMore
 
 func TestDownStopsAtLoadMore(t *testing.T) {
-	if got := pressed(abc(), 3, tea.KeyDown); got != 3 {
-		t.Fatalf("Selected() = %d, want 3", got)
+	if got := pressed(tenTracks(), 10, tea.KeyDown); got != 10 {
+		t.Fatalf("Selected() = %d, want 10", got)
 	}
 }
 

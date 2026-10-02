@@ -2,6 +2,9 @@
 package app
 
 import (
+	"errors"
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -99,14 +102,33 @@ func NewFromConfig(path string, p provider.Provider) Model {
 
 // START: Run
 
+// helpText is what `goremi help` prints.
+const helpText = `goremi - terminal music player
+
+Usage:
+  goremi          open the player
+  goremi theme    choose a theme
+  goremi help     show this help
+`
+
 // Run is the goremi command. With the argument "theme" it first shows the theme picker and, once a theme is saved, opens the app with it;
-// a cancelled picker ends the command. Without it the app opens with the theme from the config at path.
-// run runs one model to its end and returns the final model.
-func Run(args []string, path string, p provider.Provider, run func(tea.Model) (tea.Model, error)) error {
+// a cancelled picker ends the command. An argument it does not know opens nothing and returns an error that hints at `goremi help`. `goremi help`, `goremi --help` and `goremi -h` write the usage text to out and opens nothing. Without arguments the app opens with the theme from the config at path.
+// out receives the help text; run runs one model to its end and returns the final model.
+func Run(args []string, path string, p provider.Provider, out io.Writer, run func(tea.Model) (tea.Model, error)) error {
+	if len(args) > 0 && (args[0] == "help" || args[0] == "--help" || args[0] == "-h") {
+		_, err := io.WriteString(out, helpText)
+		return err
+	}
+	if len(args) > 0 && args[0] != "theme" {
+		return usageError{fmt.Sprintf("Unknown command %q. Check the spelling, or run \"goremi help\".", args[0])}
+	}
 	if len(args) > 0 && args[0] == "theme" {
 		final, err := run(NewThemeModel(path))
 		if err != nil {
 			return err
+		}
+		if saveErr := final.(ThemeModel).err; saveErr != nil {
+			return fmt.Errorf("Cannot save the theme: %w", saveErr)
 		}
 		if final.(ThemeModel).Chosen() == "" {
 			return nil
@@ -114,6 +136,23 @@ func Run(args []string, path string, p provider.Provider, run func(tea.Model) (t
 	}
 	_, err := run(NewFromConfig(path, p))
 	return err
+}
+
+// usageError is a mistake in the command line, as opposed to a failure while running.
+type usageError struct{ msg string }
+
+func (e usageError) Error() string { return e.msg }
+
+// ExitCode is the exit code of the command for the error Run returned: 0 for none, 2 for a mistake in the command line, 1 otherwise.
+func ExitCode(err error) int {
+	var u usageError
+	switch {
+	case err == nil:
+		return 0
+	case errors.As(err, &u):
+		return 2
+	}
+	return 1
 }
 
 // END: Run

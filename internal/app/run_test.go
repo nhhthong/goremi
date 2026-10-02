@@ -2,6 +2,7 @@
 package app
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -29,7 +30,7 @@ func fakeRun(keys ...tea.KeyPressMsg) (func(tea.Model) (tea.Model, error), *[]te
 func TestRunThemeOpensAppAfterEnter(t *testing.T) {
 	path := writeConfig(t, "[ui]\ntheme = \"dark\"\n")
 	run, ran := fakeRun(thDown, thEnter)
-	if err := Run([]string{"theme"}, path, fakeProvider{}, run); err != nil {
+	if err := Run([]string{"theme"}, path, fakeProvider{}, io.Discard, run); err != nil {
 		t.Fatal(err)
 	}
 	if len(*ran) != 2 {
@@ -52,7 +53,7 @@ func TestRunThemeOpensAppAfterEnter(t *testing.T) {
 
 func TestRunWithoutArgsSkipsPicker(t *testing.T) {
 	run, ran := fakeRun()
-	if err := Run(nil, filepath.Join(t.TempDir(), "config.toml"), fakeProvider{}, run); err != nil {
+	if err := Run(nil, filepath.Join(t.TempDir(), "config.toml"), fakeProvider{}, io.Discard, run); err != nil {
 		t.Fatal(err)
 	}
 	if _, ok := (*ran)[0].(Model); !ok || len(*ran) != 1 {
@@ -67,7 +68,7 @@ func TestRunWithoutArgsSkipsPicker(t *testing.T) {
 func TestRunThemeEscExits(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.toml")
 	run, ran := fakeRun(thDown, thEsc)
-	if err := Run([]string{"theme"}, path, fakeProvider{}, run); err != nil {
+	if err := Run([]string{"theme"}, path, fakeProvider{}, io.Discard, run); err != nil {
 		t.Fatal(err)
 	}
 	if _, ok := (*ran)[0].(ThemeModel); !ok || len(*ran) != 1 {

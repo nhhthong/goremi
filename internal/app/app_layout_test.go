@@ -35,7 +35,7 @@ func abModel(width int) Model {
 // sideBySide reports whether one view line holds both the selected track A and the first art line.
 func sideBySide(m Model) bool {
 	for _, l := range viewLines(m) {
-		if strings.Contains(l, "▶ A") && strings.Contains(l, art0()) {
+		if strings.Contains(plain(l), "▶ A") && strings.Contains(plain(l), art0()) {
 			return true
 		}
 	}
@@ -69,14 +69,14 @@ func TestWidth80IsSideBySide(t *testing.T) {
 }
 
 func TestWidePanelWithoutTracks(t *testing.T) {
-	if got := sized(New(fakeProvider{}), 100).View().Content; !strings.Contains(got, art0()) {
+	if got := sized(New(fakeProvider{}), 100).View().Content; !strings.Contains(plain(got), art0()) {
 		t.Fatalf("view %q misses the art", got)
 	}
 }
 
 func TestNoPanelBeforeSize(t *testing.T) {
 	p := &scriptedProvider{steps: []step{{tracks: []provider.Track{{Title: "A"}, {Title: "B"}}}}}
-	if got := search(New(p), "daft").View().Content; strings.Contains(got, art0()) {
+	if got := search(New(p), "daft").View().Content; strings.Contains(plain(got), art0()) {
 		t.Fatalf("view %q shows the panel before any size is known", got)
 	}
 }
@@ -86,7 +86,7 @@ func TestNoPanelBeforeSize(t *testing.T) {
 // START: stacked layout
 
 func isSearch(l string) bool { return strings.HasPrefix(plain(l), "Search:") }
-func isArt(l string) bool    { return strings.Contains(l, art0()) }
+func isArt(l string) bool    { return strings.Contains(plain(l), art0()) }
 func isTrackA(l string) bool { return strings.Contains(l, "▶ A") }
 
 func TestNarrowStacksSearchPanelList(t *testing.T) {
@@ -126,7 +126,7 @@ func TestNarrowNoTracksOnlyArt(t *testing.T) {
 
 func TestNarrowZeroResultsOnlyArt(t *testing.T) {
 	got := strings.Join(viewLines(search(sized(New(fakeProvider{}), 60), "daft")), "\n")
-	if strings.Contains(got, "load more...") || !strings.Contains(got, art0()) {
+	if strings.Contains(got, "load more...") || !strings.Contains(plain(got), art0()) {
 		t.Fatalf("view %q: want the art and no load more line", got)
 	}
 }

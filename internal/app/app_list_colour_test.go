@@ -20,6 +20,12 @@ func rowLine(t *testing.T, m Model, want string) string {
 	return ""
 }
 
+// moreModel returns a model of the given width whose list holds a full page, the tracks A to J, so it ends with the load more line.
+func moreModel(width int) Model {
+	p := &scriptedProvider{steps: []step{{tracks: tenTracks()}}}
+	return search(sized(New(p), width), "daft")
+}
+
 // START: TestSelectedRowColours
 
 func TestSelectedRowColours(t *testing.T) {
@@ -45,9 +51,10 @@ func TestSelectedRowBold(t *testing.T) {
 // START: TestLoadMoreSelectedColours
 
 func TestLoadMoreSelectedColours(t *testing.T) {
-	var m tea.Model = abModel(79)
-	m, _ = m.Update(down)
-	m, _ = m.Update(down)
+	var m tea.Model = moreModel(79)
+	for i := 0; i < 10; i++ {
+		m, _ = m.Update(down)
+	}
 	wantCodes(t, rowLine(t, m.(Model), "▶ load more..."), "48;2;49;50;68")
 }
 
@@ -68,7 +75,7 @@ func TestUnselectedRowForeground(t *testing.T) {
 // START: TestLoadMoreUnselectedMuted
 
 func TestLoadMoreUnselectedMuted(t *testing.T) {
-	wantCodes(t, rowLine(t, abModel(79), "  load more..."), "38;2;108;112;134")
+	wantCodes(t, rowLine(t, moreModel(79), "  load more..."), "38;2;108;112;134")
 }
 
 // END: TestLoadMoreUnselectedMuted

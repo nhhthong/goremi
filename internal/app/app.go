@@ -100,6 +100,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.notice = ""
 			m.results = ui.NewResults(m.provider, r.query, r.tracks)
 			if len(r.tracks) == 0 {
+				m.focus = FocusInput
 				m.notice = `No results for "` + r.query + `".`
 			}
 		}
@@ -113,6 +114,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if !ok {
 		var cmd tea.Cmd
 		m.results, cmd = m.results.Update(msg)
+		if err := m.results.LoadErr(); err != nil {
+			m.notice = searchMessage(err)
+			m.results = m.results.ClearLoadErr()
+		}
 		return m, cmd
 	}
 	if k.Code == 'c' && k.Mod&tea.ModCtrl != 0 {
@@ -181,7 +186,7 @@ func (m Model) View() tea.View {
 	}
 	list := ""
 	if len(m.results.Tracks()) > 0 {
-		list = ui.PaintResults(m.theme, ui.RenderResultsMore(m.results.Tracks(), m.results.Selected()), m.results.Selected(), len(m.results.Tracks()))
+		list = ui.PaintResults(m.theme, m.results.RenderWidth(m.listWidth()), m.results.Selected(), len(m.results.Tracks()))
 	}
 	switch {
 	case m.width == 0: // size not known yet: no panel
@@ -202,6 +207,14 @@ func (m Model) View() tea.View {
 	v.BackgroundColor = lipgloss.Color(m.theme.Background)
 	v.ForegroundColor = lipgloss.Color(m.theme.Foreground)
 	return v
+}
+
+// listWidth is the width a list line may have: beside the 40-column panel and its two-space gap from sideBySideMin, the whole width when stacked, 0 (no limit) until the width is known.
+func (m Model) listWidth() int {
+	if m.width >= sideBySideMin {
+		return m.width - 42
+	}
+	return m.width
 }
 
 // searchMessage is the one-line text under the search box for a failed search.

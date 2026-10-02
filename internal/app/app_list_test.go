@@ -25,11 +25,20 @@ func (p *pagedProvider) Search(q string, page int) ([]provider.Track, error) {
 	return p.pages[page], nil
 }
 
-// listOf returns a model with the list A, B, C for the query "daft", the focus on the list and the selected line set.
+// tenTracks is a full page: the tracks A to J.
+func tenTracks() []provider.Track {
+	var out []provider.Track
+	for _, c := range "ABCDEFGHIJ" {
+		out = append(out, provider.Track{Title: string(c)})
+	}
+	return out
+}
+
+// listOf returns a model with the list A to J for the query "daft", the focus on the list and the selected line set.
 func listOf(selected int) (Model, *pagedProvider) {
 	p := &pagedProvider{pages: map[int][]provider.Track{
-		1: {{Title: "A"}, {Title: "B"}, {Title: "C"}},
-		2: {{Title: "D"}, {Title: "E"}},
+		1: tenTracks(),
+		2: {{Title: "K"}, {Title: "L"}},
 	}}
 	m := search(New(p), "daft").WithFocus(FocusList)
 	p.calls = nil
@@ -54,7 +63,7 @@ func pressEnterOnList(m Model) (Model, tea.Msg) {
 // START: focus after a search
 
 func TestFocusToListOnResults(t *testing.T) {
-	m := search(New(fakeProvider{}), "daft")
+	m := search(New(&scriptedProvider{steps: []step{{tracks: []provider.Track{{Title: "A"}}}}}), "daft")
 	if m.Focus() != FocusList {
 		t.Fatalf("Focus() = %v, want FocusList", m.Focus())
 	}
@@ -80,7 +89,7 @@ func TestFocusWaitsForResults(t *testing.T) {
 // START: load more
 
 func TestLoadMoreCallsPage2(t *testing.T) {
-	m, p := listOf(3)
+	m, p := listOf(10)
 	pressEnterOnList(m)
 	if want := []searchCall{{"daft", 2}}; !reflect.DeepEqual(p.calls, want) {
 		t.Fatalf("calls = %v, want %v", p.calls, want)
@@ -88,10 +97,10 @@ func TestLoadMoreCallsPage2(t *testing.T) {
 }
 
 func TestLoadMoreAppendsTracks(t *testing.T) {
-	m, _ := listOf(3)
+	m, _ := listOf(10)
 	next, msg := pressEnterOnList(m)
 	after, _ := next.Update(msg)
-	if got, want := titles(after.(Model).Tracks()), []string{"A", "B", "C", "D", "E"}; !reflect.DeepEqual(got, want) {
+	if got, want := titles(after.(Model).Tracks()), []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("tracks = %v, want %v", got, want)
 	}
 }
@@ -125,7 +134,7 @@ func TestEnterPlaysFirstTrack(t *testing.T) {
 }
 
 func TestEnterOnLoadMoreDoesNotPlay(t *testing.T) {
-	m, _ := listOf(3)
+	m, _ := listOf(10)
 	_, msg := pressEnterOnList(m)
 	if _, ok := msg.(PlayMsg); ok {
 		t.Fatalf("message = %#v, want no PlayMsg", msg)

@@ -274,7 +274,7 @@ func titles(ts []provider.Track) []string {
 // START: TestEnterMovesFocusToList
 
 func TestEnterMovesFocusToList(t *testing.T) {
-	m, _ := typed(New(fakeProvider{}), "daft")
+	m, _ := typed(New(&scriptedProvider{steps: []step{{tracks: []provider.Track{{Title: "A"}}}}}), "daft")
 	next, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	next, _ = next.Update(cmd()) // the focus moves when the results arrive (18.3.1)
 	if got := next.(Model).Focus(); got != FocusList {
@@ -461,7 +461,7 @@ func TestViewInputAboveList(t *testing.T) {
 // START: TestViewShowsAllTracks
 
 func TestViewShowsAllTracks(t *testing.T) {
-	p := &scriptedProvider{steps: []step{{tracks: []provider.Track{{Title: "A"}, {Title: "B"}, {Title: "C"}}}}}
+	p := &scriptedProvider{steps: []step{{tracks: tenTracks()}}}
 	c := search(New(p), "daft").View().Content
 	last := -1
 	for _, s := range []string{"A", "B", "C", "load more..."} {

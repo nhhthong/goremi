@@ -15,6 +15,9 @@ import (
 
 const pageSize = 10
 
+// PageSize is the number of tracks of one search page.
+const PageSize = pageSize
+
 // START: Errors
 
 // SearchTimeout is how long a search may take before it is abandoned.
@@ -116,7 +119,7 @@ func (p *YouTubeProvider) Search(query string, page int) ([]Track, error) {
 	if err != nil {
 		return nil, err
 	}
-	// parse one JSON object per line, stop at the page size
+	// parse one JSON object per line, skip the lines that do not parse, stop at the page size
 	var tracks []Track
 	sc := bufio.NewScanner(bytes.NewReader(out))
 	sc.Buffer(nil, 1<<20)
@@ -127,7 +130,7 @@ func (p *YouTubeProvider) Search(query string, page int) ([]Track, error) {
 		}
 		var e entry
 		if err := json.Unmarshal([]byte(line), &e); err != nil {
-			return nil, err
+			continue // a line that is not JSON is skipped, not an error
 		}
 		tracks = append(tracks, e.track())
 	}

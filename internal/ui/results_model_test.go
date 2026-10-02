@@ -54,8 +54,8 @@ func pressEnter(r Results) (Results, tea.Cmd) {
 // START: TestLoadMoreAppends
 
 func TestLoadMoreAppends(t *testing.T) {
-	f := &fakeProvider{pages: map[int][]provider.Track{2: {{Title: "D"}, {Title: "E"}}}}
-	r := NewResults(f, "daft punk", []provider.Track{{Title: "A"}, {Title: "B"}, {Title: "C"}}).Select(3)
+	f := &fakeProvider{pages: map[int][]provider.Track{2: {{Title: "K"}, {Title: "L"}}}}
+	r := NewResults(f, "daft punk", tenTracks()).Select(10)
 	r, cmd := pressEnter(r)
 	if cmd == nil {
 		t.Fatal("want a command")
@@ -63,7 +63,7 @@ func TestLoadMoreAppends(t *testing.T) {
 	if want := [][2]any{{"daft punk", 2}}; !reflect.DeepEqual(f.calls, want) {
 		t.Fatalf("calls = %v, want %v", f.calls, want)
 	}
-	if got, want := titles(r.Tracks()), []string{"A", "B", "C", "D", "E"}; !reflect.DeepEqual(got, want) {
+	if got, want := titles(r.Tracks()), append(titles(tenTracks()), "K", "L"); !reflect.DeepEqual(got, want) {
 		t.Fatalf("tracks = %v, want %v", got, want)
 	}
 }
@@ -89,15 +89,15 @@ func TestEnterOnTrackDoesNotLoad(t *testing.T) {
 // START: TestLoadMoreSecondPage
 
 func TestLoadMoreSecondPage(t *testing.T) {
-	f := &fakeProvider{pages: map[int][]provider.Track{2: {{Title: "D"}}, 3: {{Title: "E"}}}}
-	r := NewResults(f, "q", []provider.Track{{Title: "A"}, {Title: "B"}, {Title: "C"}}).Select(3)
+	f := &fakeProvider{pages: map[int][]provider.Track{2: numbered("K", 10), 3: {{Title: "E"}}}}
+	r := NewResults(f, "q", tenTracks()).Select(10)
 	r, _ = pressEnter(r)
 	r, _ = pressEnter(r.Select(len(r.Tracks())))
 	if want := [][2]any{{"q", 2}, {"q", 3}}; !reflect.DeepEqual(f.calls, want) {
 		t.Fatalf("calls = %v, want %v", f.calls, want)
 	}
-	if got, want := titles(r.Tracks()), []string{"A", "B", "C", "D", "E"}; !reflect.DeepEqual(got, want) {
-		t.Fatalf("tracks = %v, want %v", got, want)
+	if got := titles(r.Tracks()); len(got) != 21 || got[20] != "E" {
+		t.Fatalf("tracks = %v, want 21 tracks ending with E", got)
 	}
 }
 
@@ -107,9 +107,9 @@ func TestLoadMoreSecondPage(t *testing.T) {
 
 func TestLoadMoreError(t *testing.T) {
 	f := &fakeProvider{err: errors.New("boom")}
-	r := NewResults(f, "q", []provider.Track{{Title: "A"}}).Select(1)
+	r := NewResults(f, "q", tenTracks()).Select(10)
 	r, _ = pressEnter(r)
-	if got := titles(r.Tracks()); !reflect.DeepEqual(got, []string{"A"}) {
+	if got := titles(r.Tracks()); !reflect.DeepEqual(got, titles(tenTracks())) {
 		t.Fatalf("tracks = %v, want unchanged", got)
 	}
 }
