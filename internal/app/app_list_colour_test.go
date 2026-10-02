@@ -29,7 +29,7 @@ func moreModel(width int) Model {
 // START: TestSelectedRowColours
 
 func TestSelectedRowColours(t *testing.T) {
-	wantCodes(t, rowLine(t, abModel(79), "▶ A"), "48;2;49;50;68", "38;2;137;180;250")
+	wantCodes(t, rowLine(t, abModel(79), "▶ A"), "48;2;19;78;74", "38;2;45;212;191")
 }
 
 // END: TestSelectedRowColours
@@ -55,27 +55,25 @@ func TestLoadMoreSelectedColours(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		m, _ = m.Update(down)
 	}
-	wantCodes(t, rowLine(t, m.(Model), "▶ load more..."), "48;2;49;50;68")
+	wantCodes(t, rowLine(t, m.(Model), "▶ load more..."), "48;2;19;78;74")
 }
 
 // END: TestLoadMoreSelectedColours
 
-// START: TestUnselectedRowForeground
+// START: TestUnselectedRowPlain
 
-func TestUnselectedRowForeground(t *testing.T) {
-	line := rowLine(t, abModel(79), "  B")
-	wantCodes(t, line, "38;2;205;214;244")
-	if strings.Contains(line, "48;2;") {
-		t.Errorf("unselected line %q has a background", line)
+func TestUnselectedRowPlain(t *testing.T) {
+	if line := rowLine(t, abModel(79), "  B"); line != "  B" {
+		t.Fatalf("unselected line %q carries a colour code, want the plain text %q", line, "  B")
 	}
 }
 
-// END: TestUnselectedRowForeground
+// END: TestUnselectedRowPlain
 
 // START: TestLoadMoreUnselectedMuted
 
 func TestLoadMoreUnselectedMuted(t *testing.T) {
-	wantCodes(t, rowLine(t, moreModel(79), "  load more..."), "38;2;108;112;134")
+	wantCodes(t, rowLine(t, moreModel(79), "  load more..."), "38;2;138;138;138")
 }
 
 // END: TestLoadMoreUnselectedMuted

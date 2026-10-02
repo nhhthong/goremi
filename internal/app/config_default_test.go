@@ -10,7 +10,7 @@ import (
 // START: TestShowKeysDefaultTrue
 
 func TestShowKeysDefaultTrue(t *testing.T) {
-	got := LoadConfig(writeConfig(t, "[ui]\ntheme = \"dark\"\n"))
+	got := LoadConfig(writeConfig(t, "[ui]\ntheme = \"default\"\n"))
 	if !got.ShowArtwork || !got.ShowSpectrum {
 		t.Fatalf("LoadConfig = %+v, want both show keys true", got)
 	}
@@ -32,8 +32,8 @@ func TestShowKeyFalseKept(t *testing.T) {
 // START: TestUnlistedThemeFallsBack
 
 func TestUnlistedThemeFallsBack(t *testing.T) {
-	if got := LoadConfig(writeConfig(t, "[ui]\ntheme = \"neon\"\n")); got.Theme != "dark" {
-		t.Fatalf("Theme = %q, want dark", got.Theme)
+	if got := LoadConfig(writeConfig(t, "[ui]\ntheme = \"neon\"\n")); got.Theme != "default" {
+		t.Fatalf("Theme = %q, want default", got.Theme)
 	}
 }
 
@@ -43,7 +43,7 @@ func TestUnlistedThemeFallsBack(t *testing.T) {
 
 func TestMissingConfigDefaults(t *testing.T) {
 	got := LoadConfig(filepath.Join(t.TempDir(), "none.toml"))
-	if want := (Config{Theme: "dark", ShowArtwork: true, ShowSpectrum: true}); got != want {
+	if want := (Config{Theme: "default", ShowArtwork: true, ShowSpectrum: true}); got != want {
 		t.Fatalf("LoadConfig = %+v, want %+v", got, want)
 	}
 }
@@ -53,15 +53,15 @@ func TestMissingConfigDefaults(t *testing.T) {
 // START: TestBrokenConfigFallsBack
 
 func TestBrokenConfigFallsBack(t *testing.T) {
-	path := writeConfig(t, "[ui]\ntheme = dark\n")
-	if got, want := LoadConfig(path), (Config{Theme: "dark", ShowArtwork: true, ShowSpectrum: true}); got != want {
+	path := writeConfig(t, "[ui]\ntheme = default\n")
+	if got, want := LoadConfig(path), (Config{Theme: "default", ShowArtwork: true, ShowSpectrum: true}); got != want {
 		t.Fatalf("broken file: LoadConfig = %+v, want %+v", got, want)
 	}
-	if err := os.WriteFile(path, []byte("[ui]\ntheme = \"light\"\n"), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte("[ui]\ntheme = \"nord\"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if got := LoadConfig(path); got.Theme != "light" {
-		t.Fatalf("after the fix: Theme = %q, want light", got.Theme)
+	if got := LoadConfig(path); got.Theme != "nord" {
+		t.Fatalf("after the fix: Theme = %q, want nord", got.Theme)
 	}
 }
 
@@ -71,11 +71,11 @@ func TestBrokenConfigFallsBack(t *testing.T) {
 
 func TestSaveThemeCreatesDir(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "a", "b", "config.toml")
-	if err := SaveTheme(path, "light"); err != nil {
+	if err := SaveTheme(path, "nord"); err != nil {
 		t.Fatal(err)
 	}
-	if got := LoadConfig(path); got.Theme != "light" {
-		t.Fatalf("Theme = %q, want light", got.Theme)
+	if got := LoadConfig(path); got.Theme != "nord" {
+		t.Fatalf("Theme = %q, want nord", got.Theme)
 	}
 }
 
@@ -84,11 +84,11 @@ func TestSaveThemeCreatesDir(t *testing.T) {
 // START: TestSaveThemeKeepsOtherKeys
 
 func TestSaveThemeKeepsOtherKeys(t *testing.T) {
-	path := writeConfig(t, "[ui]\ntheme = \"dark\"\nshow_artwork = false\nshow_spectrum = true\n")
-	if err := SaveTheme(path, "cyberpunk"); err != nil {
+	path := writeConfig(t, "[ui]\ntheme = \"default\"\nshow_artwork = false\nshow_spectrum = true\n")
+	if err := SaveTheme(path, "dracula"); err != nil {
 		t.Fatal(err)
 	}
-	want := Config{Theme: "cyberpunk", ShowArtwork: false, ShowSpectrum: true}
+	want := Config{Theme: "dracula", ShowArtwork: false, ShowSpectrum: true}
 	if got := LoadConfig(path); got != want {
 		t.Fatalf("LoadConfig = %+v, want %+v", got, want)
 	}

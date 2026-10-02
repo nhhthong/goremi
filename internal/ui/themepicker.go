@@ -30,12 +30,7 @@ func NewThemePicker(entries []theme.Entry, current string) ThemePicker {
 }
 
 // Selected is the name of the selected theme.
-func (p ThemePicker) Selected() string {
-	if len(p.entries) == 0 {
-		return ""
-	}
-	return p.entries[p.selected].Name
-}
+func (p ThemePicker) Selected() string { return p.entries[p.selected].Name }
 
 // Update moves the selection one line on ↑ and ↓ and stops at the first and the last line.
 func (p ThemePicker) Update(k tea.KeyPressMsg) ThemePicker {
@@ -48,20 +43,15 @@ func (p ThemePicker) Update(k tea.KeyPressMsg) ThemePicker {
 	return p
 }
 
-// View is one line per theme name, drawn in the colours of the selected theme.
+// View is one line per theme name; the selected line is drawn in the colours of the selected theme.
 func (p ThemePicker) View() string {
-	if len(p.entries) == 0 {
-		return ""
-	}
 	t := p.entries[p.selected].Theme
-	plain := lipgloss.NewStyle().Foreground(lipgloss.Color(t.Foreground))
 	chosen := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(t.Accent)).Background(lipgloss.Color(t.Selected))
 	lines := make([]string, len(p.entries))
 	for i, e := range p.entries {
+		lines[i] = e.Name
 		if i == p.selected {
 			lines[i] = chosen.Render(e.Name)
-		} else {
-			lines[i] = plain.Render(e.Name)
 		}
 	}
 	return strings.Join(lines, "\n")

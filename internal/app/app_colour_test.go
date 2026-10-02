@@ -35,35 +35,35 @@ func TestPanelDefaultLogoColours(t *testing.T) {
 
 // END: TestPanelDefaultLogoColours
 
-// START: TestHintUsesMutedDark
+// START: TestHintUsesMutedDefault
 
-func TestHintUsesMutedDark(t *testing.T) {
+func TestHintUsesMutedDefault(t *testing.T) {
 	first := viewLines(New(fakeProvider{}))[0]
-	wantCodes(t, first, "38;2;108;112;134", "Ctrl+C: quit", "goremi theme")
+	wantCodes(t, first, "38;2;138;138;138", "Ctrl+C: quit", "goremi theme")
 }
 
-// END: TestHintUsesMutedDark
+// END: TestHintUsesMutedDefault
 
-// START: TestHintUsesMutedLight
+// START: TestHintUsesMutedDracula
 
-func TestHintUsesMutedLight(t *testing.T) {
-	wantCodes(t, viewLines(New(fakeProvider{}).WithTheme(theme.Light()))[0], "38;2;138;138;138")
+func TestHintUsesMutedDracula(t *testing.T) {
+	wantCodes(t, viewLines(New(fakeProvider{}).WithTheme(theme.Dracula()))[0], "38;2;98;114;164")
 }
 
-// END: TestHintUsesMutedLight
+// END: TestHintUsesMutedDracula
 
-// START: TestSearchLabelAccentDark
+// START: TestSearchLabelAccentDefault
 
-func TestSearchLabelAccentDark(t *testing.T) {
-	wantCodes(t, viewLines(New(fakeProvider{}))[1], "38;2;137;180;250")
+func TestSearchLabelAccentDefault(t *testing.T) {
+	wantCodes(t, viewLines(New(fakeProvider{}))[1], "38;2;45;212;191")
 }
 
-// END: TestSearchLabelAccentDark
+// END: TestSearchLabelAccentDefault
 
-// START: TestSearchLabelAccentLight
+// START: TestSearchLabelAccentDracula
 
-func TestSearchLabelAccentLight(t *testing.T) {
-	wantCodes(t, viewLines(New(fakeProvider{}).WithTheme(theme.Light()))[1], "38;2;74;111;165")
+func TestSearchLabelAccentDracula(t *testing.T) {
+	wantCodes(t, viewLines(New(fakeProvider{}).WithTheme(theme.Dracula()))[1], "38;2;189;147;249")
 }
 
-// END: TestSearchLabelAccentLight
+// END: TestSearchLabelAccentDracula

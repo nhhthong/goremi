@@ -1,9 +1,10 @@
-// Theme definition: the semantic colour fields every component reads (palettes live in dark.go, light.go, cyberpunk.go).
+// Theme definition: the semantic colour fields every component reads, and the list of themes (one file per palette).
 package theme
 
 // START: Theme
 
 // Theme holds the colours of one theme as hex strings; components use these fields, never literal colours.
+// Background and Foreground are not used: a theme never sets the terminal's own colours.
 type Theme struct {
 	Background string
 	Foreground string
@@ -19,16 +20,6 @@ type Theme struct {
 
 // END: Theme
 
-// START: logo stops
-
-// The logo gradient runs teal to blue; every theme uses the same pair.
-const (
-	logoFrom = "#2dd4bf"
-	logoTo   = "#3b82f6"
-)
-
-// END: logo stops
-
 // START: registry
 
 // Entry is a theme with the name the user picks it by.
@@ -39,9 +30,13 @@ type Entry struct {
 
 // all is the one list of themes; the picker and ByName read it. A new theme is one entry here.
 var all = []Entry{
-	{"light", Light()},
-	{"dark", Dark()},
-	{"cyberpunk", Cyberpunk()},
+	{"default", Default()},
+	{"catppuccin", Catppuccin()},
+	{"dracula", Dracula()},
+	{"gruvbox", Gruvbox()},
+	{"nord", Nord()},
+	{"rosepine", RosePine()},
+	{"tokyonight", TokyoNight()},
 }
 
 // All returns the themes in display order.

@@ -46,19 +46,17 @@ func RenderResultsMore(tracks []provider.Track, selected int) string {
 
 // START: PaintResults
 
-// PaintResults colours a rendered list: the selected line bold Accent on Selected, "load more..." Muted, the track lines Foreground.
+// PaintResults colours a rendered list: the selected line bold Accent on Selected, "load more..." Muted; the track lines keep the terminal's colour.
 // tracks is the number of track lines; the lines after them are the "load more..." line.
 func PaintResults(t theme.Theme, rendered string, selected, tracks int) string {
 	lines := strings.Split(rendered, "\n")
 	for i, l := range lines {
-		style := lipgloss.NewStyle().Foreground(lipgloss.Color(t.Foreground))
 		switch {
 		case i == selected:
-			style = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(t.Accent)).Background(lipgloss.Color(t.Selected))
+			lines[i] = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(t.Accent)).Background(lipgloss.Color(t.Selected)).Render(l)
 		case i >= tracks:
-			style = lipgloss.NewStyle().Foreground(lipgloss.Color(t.Muted))
+			lines[i] = lipgloss.NewStyle().Foreground(lipgloss.Color(t.Muted)).Render(l)
 		}
-		lines[i] = style.Render(l)
 	}
 	return strings.Join(lines, "\n")
 }

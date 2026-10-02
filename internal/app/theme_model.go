@@ -51,6 +51,10 @@ func (m ThemeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m ThemeModel) View() tea.View { return tea.NewView(m.picker.View()) }
+func (m ThemeModel) View() tea.View {
+	v := tea.NewView(m.picker.View())
+	v.AltScreen = true
+	return v
+}
 
 // END: ThemeModel

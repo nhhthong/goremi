@@ -1,8 +1,7 @@
-// Tests for the colours of the message line and of the whole screen.
+// Tests for the message line and the screen colours: plain text keeps the terminal's colours.
 package app
 
 import (
-	"image/color"
 	"testing"
 
 	"goremi/internal/provider"
@@ -16,46 +15,42 @@ func failedSearchLine(t *testing.T, th theme.Theme) string {
 	return rowLine(t, search(New(p).WithTheme(th), "daft"), networkText)
 }
 
-// rgb returns the 8-bit red, green and blue of c.
-func rgb(c color.Color) [3]uint8 {
-	r, g, b, _ := c.RGBA()
-	return [3]uint8{uint8(r >> 8), uint8(g >> 8), uint8(b >> 8)}
-}
+// START: TestNoticePlainDefault
 
-// START: TestNoticeForegroundDark
-
-func TestNoticeForegroundDark(t *testing.T) {
-	wantCodes(t, failedSearchLine(t, theme.Dark()), "38;2;205;214;244")
-}
-
-// END: TestNoticeForegroundDark
-
-// START: TestNoticeForegroundLight
-
-func TestNoticeForegroundLight(t *testing.T) {
-	wantCodes(t, failedSearchLine(t, theme.Light()), "38;2;43;43;43")
-}
-
-// END: TestNoticeForegroundLight
-
-// START: TestViewScreenColoursDark
-
-func TestViewScreenColoursDark(t *testing.T) {
-	v := New(fakeProvider{}).View()
-	if bg, fg := rgb(v.BackgroundColor), rgb(v.ForegroundColor); bg != [3]uint8{30, 30, 46} || fg != [3]uint8{205, 214, 244} {
-		t.Fatalf("background %v, foreground %v; want [30 30 46] and [205 214 244]", bg, fg)
+func TestNoticePlainDefault(t *testing.T) {
+	if got := failedSearchLine(t, theme.Default()); got != networkText {
+		t.Fatalf("message line %q carries a colour code, want %q", got, networkText)
 	}
 }
 
-// END: TestViewScreenColoursDark
+// END: TestNoticePlainDefault
 
-// START: TestViewScreenColoursLight
+// START: TestNoticePlainDracula
 
-func TestViewScreenColoursLight(t *testing.T) {
-	v := New(fakeProvider{}).WithTheme(theme.Light()).View()
-	if bg, fg := rgb(v.BackgroundColor), rgb(v.ForegroundColor); bg != [3]uint8{250, 250, 250} || fg != [3]uint8{43, 43, 43} {
-		t.Fatalf("background %v, foreground %v; want [250 250 250] and [43 43 43]", bg, fg)
+func TestNoticePlainDracula(t *testing.T) {
+	if got := failedSearchLine(t, theme.Dracula()); got != networkText {
+		t.Fatalf("message line %q carries a colour code, want %q", got, networkText)
 	}
 }
 
-// END: TestViewScreenColoursLight
+// END: TestNoticePlainDracula
+
+// START: TestViewNoTerminalColoursDefault
+
+func TestViewNoTerminalColoursDefault(t *testing.T) {
+	if v := New(fakeProvider{}).View(); v.BackgroundColor != nil || v.ForegroundColor != nil {
+		t.Fatalf("background %v, foreground %v; want neither set", v.BackgroundColor, v.ForegroundColor)
+	}
+}
+
+// END: TestViewNoTerminalColoursDefault
+
+// START: TestViewNoTerminalColoursDracula
+
+func TestViewNoTerminalColoursDracula(t *testing.T) {
+	if v := New(fakeProvider{}).WithTheme(theme.Dracula()).View(); v.BackgroundColor != nil || v.ForegroundColor != nil {
+		t.Fatalf("background %v, foreground %v; want neither set", v.BackgroundColor, v.ForegroundColor)
+	}
+}
+
+// END: TestViewNoTerminalColoursDracula

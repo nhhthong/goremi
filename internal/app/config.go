@@ -47,7 +47,7 @@ type configFile struct {
 }
 
 // defaultConfig is what the app uses without a (valid) config file.
-func defaultConfig() Config { return Config{Theme: "dark", ShowArtwork: true, ShowSpectrum: true} }
+func defaultConfig() Config { return Config{Theme: "default", ShowArtwork: true, ShowSpectrum: true} }
 
 // LoadConfig reads the file at path. A missing or unparsable file, a theme not in the list and an absent key all fall back to the defaults.
 func LoadConfig(path string) Config {

@@ -11,21 +11,21 @@ import (
 // START: TestFromConfigUsesTheme
 
 func TestFromConfigUsesTheme(t *testing.T) {
-	m := NewFromConfig(writeConfig(t, "[ui]\ntheme = \"cyberpunk\"\n"), fakeProvider{})
-	if m.Theme() != theme.Cyberpunk() {
-		t.Fatalf("Theme() = %v, want the cyberpunk theme", m.Theme())
+	m := NewFromConfig(writeConfig(t, "[ui]\ntheme = \"dracula\"\n"), fakeProvider{})
+	if m.Theme() != theme.Dracula() {
+		t.Fatalf("Theme() = %v, want the dracula theme", m.Theme())
 	}
 }
 
 // END: TestFromConfigUsesTheme
 
-// START: TestFromConfigDefaultsDark
+// START: TestFromConfigDefaultsDefault
 
-func TestFromConfigDefaultsDark(t *testing.T) {
+func TestFromConfigDefaultsDefault(t *testing.T) {
 	m := NewFromConfig(filepath.Join(t.TempDir(), "none.toml"), fakeProvider{})
-	if m.Theme() != theme.Dark() {
-		t.Fatalf("Theme() = %v, want the dark theme", m.Theme())
+	if m.Theme() != theme.Default() {
+		t.Fatalf("Theme() = %v, want the default theme", m.Theme())
 	}
 }
 
-// END: TestFromConfigDefaultsDark
+// END: TestFromConfigDefaultsDefault

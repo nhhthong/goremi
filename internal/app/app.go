@@ -45,7 +45,7 @@ type Model struct {
 
 // New starts with the focus on the search input (spec §3).
 func New(p provider.Provider) Model {
-	return Model{provider: p, focus: FocusInput, results: ui.NewResults(p, "", nil), theme: theme.Dark()}
+	return Model{provider: p, focus: FocusInput, results: ui.NewResults(p, "", nil), theme: theme.Default()}
 }
 
 func (m Model) Focus() Focus  { return m.focus }
@@ -182,7 +182,7 @@ func (m Model) View() tea.View {
 	label := lipgloss.NewStyle().Foreground(lipgloss.Color(m.theme.Accent))
 	out := hint.Render("Ctrl+C: quit · run goremi theme to choose a theme") + "\n" + label.Render("Search:") + " " + m.input.Value()
 	if m.notice != "" {
-		out += "\n" + lipgloss.NewStyle().Foreground(lipgloss.Color(m.theme.Foreground)).Render(m.notice)
+		out += "\n" + m.notice
 	}
 	list := ""
 	if len(m.results.Tracks()) > 0 {
@@ -204,8 +204,7 @@ func (m Model) View() tea.View {
 		}
 	}
 	v := tea.NewView(out)
-	v.BackgroundColor = lipgloss.Color(m.theme.Background)
-	v.ForegroundColor = lipgloss.Color(m.theme.Foreground)
+	v.AltScreen = true
 	return v
 }
 

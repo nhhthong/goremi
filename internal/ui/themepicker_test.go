@@ -11,9 +11,9 @@ import (
 // START: TestPickerListsThemes
 
 func TestPickerListsThemes(t *testing.T) {
-	lines := strings.Split(NewThemePicker(theme.All(), "dark").View(), "\n")
+	lines := strings.Split(NewThemePicker(theme.All(), "default").View(), "\n")
 	last := -1
-	for _, name := range []string{"light", "dark", "cyberpunk"} {
+	for _, name := range []string{"default", "catppuccin", "dracula", "gruvbox", "nord", "rosepine", "tokyonight"} {
 		found := -1
 		for i, l := range lines {
 			if strings.Contains(l, name) {
@@ -38,7 +38,7 @@ func TestPickerReadsGivenList(t *testing.T) {
 			t.Errorf("view %q lacks %q", view, name)
 		}
 	}
-	if strings.Contains(view, "light") {
+	if strings.Contains(view, "default") {
 		t.Errorf("view %q lists a theme that was not given", view)
 	}
 }
