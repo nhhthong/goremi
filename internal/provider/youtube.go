@@ -4,6 +4,7 @@ package provider
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,6 +15,22 @@ import (
 
 const pageSize = 10
 
+// START: Errors
+
+// SearchTimeout is how long a search may take before it is abandoned.
+const SearchTimeout = 10 * time.Second
+
+// ErrNetwork marks a search that failed because the connection was lost.
+var ErrNetwork = errors.New("network unreachable")
+
+// ErrTimeout marks a search that took longer than the timeout.
+var ErrTimeout = errors.New("search timed out")
+
+// networkMarkers are the yt-dlp stderr strings that mean a connection loss; "Unable to download" alone is not one (HTTP 429 prints it too).
+var networkMarkers = []string{"NameResolutionError", "NewConnectionError"}
+
+// END: Errors
+
 // START: Runner
 
 // Runner runs yt-dlp with args and returns its standard output; tests replace it.
@@ -21,6 +38,8 @@ type Runner func(args ...string) ([]byte, error)
 
 type YouTubeProvider struct {
 	Runner Runner
+	// Timeout limits one search; zero means SearchTimeout.
+	Timeout time.Duration
 }
 
 // run uses the injected Runner, else the real yt-dlp via os/exec (no shell).
@@ -32,6 +51,54 @@ func (p *YouTubeProvider) run(args ...string) ([]byte, error) {
 }
 
 // END: Runner
+
+// START: runSearch
+
+// runSearch runs yt-dlp like run, but gives up after the timeout and wraps a connection loss in ErrNetwork.
+func (p *YouTubeProvider) runSearch(args ...string) ([]byte, error) {
+	d := p.Timeout
+	if d == 0 {
+		d = SearchTimeout
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), d)
+	defer cancel()
+	type result struct {
+		out []byte
+		err error
+	}
+	done := make(chan result, 1)
+	go func() {
+		var r result
+		if p.Runner != nil {
+			r.out, r.err = p.Runner(args...)
+		} else {
+			r.out, r.err = exec.CommandContext(ctx, "yt-dlp", args...).Output()
+		}
+		done <- r
+	}()
+	select {
+	case r := <-done:
+		return r.out, classify(r.err)
+	case <-ctx.Done():
+		return nil, ErrTimeout
+	}
+}
+
+// classify wraps err in ErrNetwork when the yt-dlp stderr shows a connection loss.
+func classify(err error) error {
+	var ee *exec.ExitError
+	if !errors.As(err, &ee) {
+		return err
+	}
+	for _, m := range networkMarkers {
+		if strings.Contains(string(ee.Stderr), m) {
+			return fmt.Errorf("%w: %w", ErrNetwork, err)
+		}
+	}
+	return err
+}
+
+// END: runSearch
 
 // START: Search
 
@@ -45,7 +112,7 @@ func (p *YouTubeProvider) Search(query string, page int) ([]Track, error) {
 	if page > 1 {
 		args = append(args, "-I", fmt.Sprintf("%d:%d", pageSize*(page-1)+1, pageSize*page))
 	}
-	out, err := p.run(append(args, "-j")...)
+	out, err := p.runSearch(append(args, "-j")...)
 	if err != nil {
 		return nil, err
 	}
