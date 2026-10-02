@@ -28,7 +28,7 @@ func fakeRun(keys ...tea.KeyPressMsg) (func(tea.Model) (tea.Model, error), *[]te
 // START: TestRunThemeOpensAppAfterEnter
 
 func TestRunThemeOpensAppAfterEnter(t *testing.T) {
-	path := writeConfig(t, "[ui]\ntheme = \"dark\"\n")
+	path := writeConfig(t, "[ui]\ntheme = \"default\"\n")
 	run, ran := fakeRun(thDown, thEnter)
 	if err := Run([]string{"theme"}, path, fakeProvider{}, io.Discard, run); err != nil {
 		t.Fatal(err)
@@ -39,11 +39,11 @@ func TestRunThemeOpensAppAfterEnter(t *testing.T) {
 	if _, ok := (*ran)[0].(ThemeModel); !ok {
 		t.Errorf("first model is %T, want the picker", (*ran)[0])
 	}
-	if m, ok := (*ran)[1].(Model); !ok || m.Theme() != theme.Cyberpunk() {
-		t.Errorf("second model is %T, want the app with the cyberpunk theme", (*ran)[1])
+	if m, ok := (*ran)[1].(Model); !ok || m.Theme() != theme.Catppuccin() {
+		t.Errorf("second model is %T, want the app with the catppuccin theme", (*ran)[1])
 	}
-	if got := LoadConfig(path).Theme; got != "cyberpunk" {
-		t.Errorf("saved Theme = %q, want cyberpunk", got)
+	if got := LoadConfig(path).Theme; got != "catppuccin" {
+		t.Errorf("saved Theme = %q, want catppuccin", got)
 	}
 }
 

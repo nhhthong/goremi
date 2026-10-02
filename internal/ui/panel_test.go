@@ -13,9 +13,9 @@ import (
 // START: TestPanelIsMultiLineArt
 
 func TestPanelIsMultiLineArt(t *testing.T) {
-	p := PlayerPanel(theme.Dark())
+	p := PlayerPanel(theme.Default())
 	if p == "" || len(strings.Split(p, "\n")) < 3 {
-		t.Fatalf("PlayerPanel(theme.Dark()) = %q, want at least 3 lines", p)
+		t.Fatalf("PlayerPanel(theme.Default()) = %q, want at least 3 lines", p)
 	}
 }
 
@@ -24,7 +24,7 @@ func TestPanelIsMultiLineArt(t *testing.T) {
 // START: TestPanelFitsWidth
 
 func TestPanelFitsWidth(t *testing.T) {
-	for i, l := range strings.Split(PlayerPanel(theme.Dark()), "\n") {
+	for i, l := range strings.Split(PlayerPanel(theme.Default()), "\n") {
 		if w := lipgloss.Width(l); w > 40 {
 			t.Errorf("line %d is %d columns wide, want at most 40", i, w)
 		}

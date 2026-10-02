@@ -7,21 +7,21 @@ import (
 	"goremi/internal/ui/theme"
 )
 
-// START: TestDefaultThemeIsDark
+// START: TestDefaultThemeIsDefault
 
-func TestDefaultThemeIsDark(t *testing.T) {
-	if got := New(fakeProvider{}).Theme(); got != theme.Dark() {
-		t.Fatalf("Theme() = %v, want the dark theme", got)
+func TestDefaultThemeIsDefault(t *testing.T) {
+	if got := New(fakeProvider{}).Theme(); got != theme.Default() {
+		t.Fatalf("Theme() = %v, want the default theme", got)
 	}
 }
 
-// END: TestDefaultThemeIsDark
+// END: TestDefaultThemeIsDefault
 
 // START: TestWithTheme
 
 func TestWithTheme(t *testing.T) {
-	if got := New(fakeProvider{}).WithTheme(theme.Light()).Theme(); got != theme.Light() {
-		t.Fatalf("Theme() = %v, want the light theme", got)
+	if got := New(fakeProvider{}).WithTheme(theme.Nord()).Theme(); got != theme.Nord() {
+		t.Fatalf("Theme() = %v, want the nord theme", got)
 	}
 }
 

@@ -29,9 +29,9 @@ func press(m ThemeModel, keys ...tea.KeyPressMsg) (ThemeModel, tea.Cmd) {
 // START: TestThemeEnterChooses
 
 func TestThemeEnterChooses(t *testing.T) {
-	m, cmd := press(NewThemeModel(writeConfig(t, "[ui]\ntheme = \"light\"\n")), thDown, thEnter)
-	if m.Chosen() != "dark" || !quits(cmd) {
-		t.Fatalf("Chosen() = %q, quits = %v; want dark and a quit", m.Chosen(), quits(cmd))
+	m, cmd := press(NewThemeModel(writeConfig(t, "[ui]\ntheme = \"default\"\n")), thDown, thEnter)
+	if m.Chosen() != "catppuccin" || !quits(cmd) {
+		t.Fatalf("Chosen() = %q, quits = %v; want catppuccin and a quit", m.Chosen(), quits(cmd))
 	}
 }
 
@@ -40,10 +40,10 @@ func TestThemeEnterChooses(t *testing.T) {
 // START: TestThemeEnterSaves
 
 func TestThemeEnterSaves(t *testing.T) {
-	path := writeConfig(t, "[ui]\ntheme = \"dark\"\n")
+	path := writeConfig(t, "[ui]\ntheme = \"default\"\n")
 	press(NewThemeModel(path), thDown, thEnter)
-	if got := LoadConfig(path).Theme; got != "cyberpunk" {
-		t.Fatalf("saved Theme = %q, want cyberpunk", got)
+	if got := LoadConfig(path).Theme; got != "catppuccin" {
+		t.Fatalf("saved Theme = %q, want catppuccin", got)
 	}
 }
 

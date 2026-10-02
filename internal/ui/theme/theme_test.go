@@ -1,4 +1,4 @@
-// Tests for the Theme struct and the dark palette, with the palette check the other theme tests share.
+// Tests for the Theme struct, with the palette check the theme tests share.
 package theme
 
 import (
@@ -21,23 +21,6 @@ func checkPalette(t *testing.T, got Theme, want map[string]string) {
 
 // END: checkPalette
 
-// START: TestDarkPalette
-
-func TestDarkPalette(t *testing.T) {
-	checkPalette(t, Dark(), map[string]string{
-		"Background": "#1e1e2e",
-		"Foreground": "#cdd6f4",
-		"Muted":      "#6c7086",
-		"Border":     "#45475a",
-		"Accent":     "#89b4fa",
-		"Selected":   "#313244",
-		"Progress":   "#89b4fa",
-		"Spectrum":   "#74c7ec",
-	})
-}
-
-// END: TestDarkPalette
-
 // START: TestThemeFields
 
 func TestThemeFields(t *testing.T) {
@@ -55,14 +38,3 @@ func TestThemeFields(t *testing.T) {
 }
 
 // END: TestThemeFields
-
-// START: TestLogoStops
-
-func TestLogoStops(t *testing.T) {
-	want := map[string]string{"LogoFrom": "#2dd4bf", "LogoTo": "#3b82f6"}
-	for name, th := range map[string]Theme{"dark": Dark(), "light": Light(), "cyberpunk": Cyberpunk()} {
-		t.Run(name, func(t *testing.T) { checkPalette(t, th, want) })
-	}
-}
-
-// END: TestLogoStops

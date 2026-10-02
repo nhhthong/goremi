@@ -13,7 +13,7 @@ func TestAllNames(t *testing.T) {
 	for _, e := range All() {
 		got = append(got, e.Name)
 	}
-	if want := []string{"light", "dark", "cyberpunk"}; !reflect.DeepEqual(got, want) {
+	if want := []string{"default", "catppuccin", "dracula", "gruvbox", "nord", "rosepine", "tokyonight"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("All() names = %v, want %v", got, want)
 	}
 }
@@ -23,7 +23,7 @@ func TestAllNames(t *testing.T) {
 // START: TestByNameListed
 
 func TestByNameListed(t *testing.T) {
-	want := map[string]Theme{"light": Light(), "dark": Dark(), "cyberpunk": Cyberpunk()}
+	want := map[string]Theme{"default": Default(), "catppuccin": Catppuccin(), "dracula": Dracula(), "gruvbox": Gruvbox(), "nord": Nord(), "rosepine": RosePine(), "tokyonight": TokyoNight()}
 	for name, th := range want {
 		got, ok := ByName(name)
 		if !ok || got != th {
@@ -37,7 +37,7 @@ func TestByNameListed(t *testing.T) {
 // START: TestByNameUnlisted
 
 func TestByNameUnlisted(t *testing.T) {
-	for _, name := range []string{"neon", "Dark", ""} {
+	for _, name := range []string{"neon", "Default", "light", "dark", "cyberpunk", ""} {
 		if _, ok := ByName(name); ok {
 			t.Errorf("ByName(%q) found a theme, want not found", name)
 		}
