@@ -11,6 +11,7 @@ import (
 
 	"goremi/internal/provider"
 	"goremi/internal/ui"
+	"goremi/internal/ui/theme"
 )
 
 // START: Focus
@@ -39,11 +40,12 @@ type Model struct {
 	searching bool
 	// width is the terminal width from the last WindowSizeMsg; 0 until the first one.
 	width int
+	theme theme.Theme
 }
 
 // New starts with the focus on the search input (spec §3).
 func New(p provider.Provider) Model {
-	return Model{provider: p, focus: FocusInput, results: ui.NewResults(p, "", nil)}
+	return Model{provider: p, focus: FocusInput, results: ui.NewResults(p, "", nil), theme: theme.Dark()}
 }
 
 func (m Model) Focus() Focus  { return m.focus }
@@ -54,6 +56,15 @@ func (m Model) Selected() int { return m.results.Selected() }
 
 // Tracks are the tracks shown in the results list.
 func (m Model) Tracks() []provider.Track { return m.results.Tracks() }
+
+// Theme is the colours the model draws with; dark until WithTheme sets another.
+func (m Model) Theme() theme.Theme { return m.theme }
+
+// WithTheme returns a copy that draws with t.
+func (m Model) WithTheme(t theme.Theme) Model {
+	m.theme = t
+	return m
+}
 
 // WithFocus returns a copy with the focus set.
 func (m Model) WithFocus(f Focus) Model {
@@ -160,15 +171,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // sideBySideMin is the width, in columns, from which the list and the panel sit side by side.
 const sideBySideMin = 80
 
-// View shows the quit hint, the search input, the message of a failed search, then the list and the player panel: side by side from 80 columns, stacked (panel, list) below, and without a panel until the width is known.
+// View shows the hints, the search input, the message of a failed search, then the list and the player panel: side by side from 80 columns, stacked (panel, list) below, and without a panel until the width is known.
 func (m Model) View() tea.View {
-	out := lipgloss.NewStyle().Faint(true).Render("Ctrl+C: quit") + "\nSearch: " + m.input.Value()
+	hint := lipgloss.NewStyle().Faint(true).Foreground(lipgloss.Color(m.theme.Muted))
+	label := lipgloss.NewStyle().Foreground(lipgloss.Color(m.theme.Accent))
+	out := hint.Render("Ctrl+C: quit · run goremi theme to choose a theme") + "\n" + label.Render("Search:") + " " + m.input.Value()
 	if m.notice != "" {
-		out += "\n" + m.notice
+		out += "\n" + lipgloss.NewStyle().Foreground(lipgloss.Color(m.theme.Foreground)).Render(m.notice)
 	}
 	list := ""
 	if len(m.results.Tracks()) > 0 {
-		list = ui.RenderResultsMore(m.results.Tracks(), m.results.Selected())
+		list = ui.PaintResults(m.theme, ui.RenderResultsMore(m.results.Tracks(), m.results.Selected()), m.results.Selected(), len(m.results.Tracks()))
 	}
 	switch {
 	case m.width == 0: // size not known yet: no panel
@@ -176,16 +189,19 @@ func (m Model) View() tea.View {
 			out += "\n" + list
 		}
 	case m.width >= sideBySideMin && list != "":
-		out += "\n" + ui.JoinPanes(list, ui.PlayerPanel())
+		out += "\n" + ui.JoinPanes(list, ui.PlayerPanel(m.theme))
 	case m.width >= sideBySideMin:
-		out += "\n" + ui.PlayerPanel()
+		out += "\n" + ui.PlayerPanel(m.theme)
 	default: // narrow: search, panel, list from top to bottom
-		out += "\n" + ui.PlayerPanel()
+		out += "\n" + ui.PlayerPanel(m.theme)
 		if list != "" {
 			out += "\n" + list
 		}
 	}
-	return tea.NewView(out)
+	v := tea.NewView(out)
+	v.BackgroundColor = lipgloss.Color(m.theme.Background)
+	v.ForegroundColor = lipgloss.Color(m.theme.Foreground)
+	return v
 }
 
 // searchMessage is the one-line text under the search box for a failed search.

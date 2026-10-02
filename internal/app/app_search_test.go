@@ -152,7 +152,8 @@ func TestViewFollowsSelection(t *testing.T) {
 
 // START: hint style
 
-const faint = "\x1b[2m"
+// faint is the start of the style code of a faint line; the colour joins it, as in "\x1b[2;38;2;…m".
+const faint = "\x1b[2;"
 
 func TestHintIsFaint(t *testing.T) {
 	first := strings.Split(New(fakeProvider{}).View().Content, "\n")[0]

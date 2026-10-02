@@ -4,6 +4,7 @@ package app
 import (
 	"errors"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -24,11 +25,17 @@ func afterSearch(steps ...step) []string {
 	return strings.Split(m.View().Content, "\n")
 }
 
+// ansiCode matches a colour or style code, so tests can read a styled line as plain text.
+var ansiCode = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+
+// plain removes the colour and style codes from a view line.
+func plain(s string) string { return ansiCode.ReplaceAllString(s, "") }
+
 // lineAfterSearch returns the view line right under the "Search:" line, or "" when there is none.
 func lineAfterSearch(lines []string) string {
 	for i, l := range lines {
-		if strings.HasPrefix(l, "Search:") && i+1 < len(lines) {
-			return lines[i+1]
+		if strings.HasPrefix(plain(l), "Search:") && i+1 < len(lines) {
+			return plain(lines[i+1])
 		}
 	}
 	return ""
@@ -55,9 +62,9 @@ func TestMessageAboveKeptList(t *testing.T) {
 	var order []string
 	for _, l := range lines {
 		switch {
-		case strings.HasPrefix(l, "Search:"):
+		case strings.HasPrefix(plain(l), "Search:"):
 			order = append(order, "search")
-		case l == networkText:
+		case plain(l) == networkText:
 			order = append(order, "message")
 		case strings.Contains(l, "A") && strings.Contains(l, "▶"):
 			order = append(order, "list")
