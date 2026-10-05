@@ -3,6 +3,7 @@ package app
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -37,6 +38,14 @@ func TestLogPathUnderCacheDir(t *testing.T) {
 
 // START: log helpers
 
+// closeLog closes the log file at the end of the test; Windows cannot remove a temp directory that holds an open file.
+func closeLog(t *testing.T, l *Logger) {
+	t.Helper()
+	if c, ok := l.w.(io.Closer); ok {
+		t.Cleanup(func() { _ = c.Close() })
+	}
+}
+
 // logLines opens a log in a temp directory, runs write on it, and returns the lines of the file.
 func logLines(t *testing.T, write func(*Logger)) []string {
 	t.Helper()
@@ -45,6 +54,7 @@ func logLines(t *testing.T, write func(*Logger)) []string {
 	if err != nil {
 		t.Fatal(err)
 	}
+	closeLog(t, l)
 	write(l)
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -88,6 +98,7 @@ func TestLogAppends(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		closeLog(t, l)
 		l.Printf("%s", msg)
 	}
 	data, err := os.ReadFile(path)

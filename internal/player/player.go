@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -33,16 +34,18 @@ type answer struct {
 
 // Player is one running mpv and the connection to its IPC endpoint.
 type Player struct {
-	cmd     *exec.Cmd
-	conn    net.Conn
-	cleanup func()
-	exited  chan struct{} // closed when the mpv process has ended
-	events  chan Event
-	mu      sync.Mutex // guards the fields below and serialises writes to conn
-	nextID  int
-	pending map[int]chan answer
-	dead    bool                          // the connection to mpv is gone
-	log     func(format string, a ...any) // gets the warn and error messages of mpv; nil means none
+	cmd      *exec.Cmd
+	conn     net.Conn
+	cleanup  func()
+	exited   chan struct{} // closed when the mpv process has ended
+	events   chan Event
+	mu       sync.Mutex // guards the fields below and serialises writes to conn
+	nextID   int
+	pending  map[int]chan answer
+	dead     bool                          // the connection to mpv is gone
+	log      func(format string, a ...any) // gets the warn and error messages of mpv; nil means none
+	bands    bandState                     // the levels of the spectrum bands read from the log messages of mpv
+	spectrum bool                          // mpv runs with the band filter
 }
 
 // END: Player
@@ -57,6 +60,41 @@ func StartContext(ctx context.Context) (*Player, error) { return StartLogged(ctx
 
 // StartLogged is StartContext that also asks mpv for its log messages and gives the warn and error ones to log.
 func StartLogged(ctx context.Context, log func(format string, a ...any)) (*Player, error) {
+	return StartWith(ctx, Options{Log: log})
+}
+
+// Options says how StartWith runs mpv: Log gets the warn and error messages of mpv, Spectrum builds the band filter (SpectrumFilter).
+type Options struct {
+	Log      func(format string, a ...any)
+	Spectrum bool
+}
+
+// mpvArgs is the command line of mpv: idle, no config, no terminal, the endpoint; with GOREMI_MPV_AO set also that audio output (CI has no sound card: "null"); with the spectrum on also the band filter and a message level that lets the band lines through.
+func mpvArgs(endpoint string, spectrum bool) []string {
+	args := []string{"--no-config", "--idle=yes", "--no-terminal", "--input-ipc-server=" + endpoint}
+	if ao := os.Getenv("GOREMI_MPV_AO"); ao != "" {
+		args = append(args, "--ao="+ao)
+	}
+	if spectrum {
+		args = append(args, "--af="+SpectrumFilter(), "--msg-level=all=error,ffmpeg=v")
+	}
+	return args
+}
+
+// subscribe asks mpv for its log messages: every one (level v) with the spectrum on, because the bands come as v messages of ffmpeg, else the warn ones when there is a log.
+func (p *Player) subscribe(spectrum bool) error {
+	level := "warn"
+	if spectrum {
+		level = "v"
+	} else if p.log == nil {
+		return nil
+	}
+	_, err := p.command("request_log_messages", level)
+	return err
+}
+
+// StartWith is StartLogged with the options above.
+func StartWith(ctx context.Context, opts Options) (*Player, error) {
 	path, err := exec.LookPath("mpv")
 	if err != nil {
 		return nil, err
@@ -65,7 +103,7 @@ func StartLogged(ctx context.Context, log func(format string, a ...any)) (*Playe
 	if err != nil {
 		return nil, err
 	}
-	cmd := exec.Command(path, "--no-config", "--idle=yes", "--no-terminal", "--input-ipc-server="+endpoint)
+	cmd := exec.Command(path, mpvArgs(endpoint, opts.Spectrum)...)
 	if err := cmd.Start(); err != nil {
 		cleanup()
 		return nil, err
@@ -80,14 +118,19 @@ func StartLogged(ctx context.Context, log func(format string, a ...any)) (*Playe
 		_ = cmd.Process.Kill()
 		<-exited
 		cleanup()
+		if opts.Spectrum && ctx.Err() == nil { // the filter may be what mpv refused: play without the spectrum rather than not at all
+			if opts.Log != nil {
+				opts.Log("mpv: did not start with the spectrum filter (%v); starting without it", err)
+			}
+			opts.Spectrum = false
+			return StartWith(ctx, opts)
+		}
 		return nil, err
 	}
-	p := &Player{cmd: cmd, conn: conn, cleanup: cleanup, exited: exited, events: make(chan Event, 16), pending: map[int]chan answer{}, log: log}
+	p := &Player{cmd: cmd, conn: conn, cleanup: cleanup, exited: exited, events: make(chan Event, 16), pending: map[int]chan answer{}, log: opts.Log, spectrum: opts.Spectrum}
 	go p.read()
-	if log != nil {
-		if _, err := p.command("request_log_messages", "warn"); err != nil {
-			log("mpv: cannot ask for log messages: %v", err)
-		}
+	if err := p.subscribe(opts.Spectrum); err != nil && opts.Log != nil {
+		opts.Log("mpv: cannot ask for log messages: %v", err)
 	}
 	return p, nil
 }
@@ -142,6 +185,7 @@ func (p *Player) read() {
 			continue
 		}
 		if m.Event == "log-message" {
+			p.bandMessage(m.Prefix, m.Text)
 			p.logMessage(m.Level, m.Prefix, m.Text)
 			continue
 		}
