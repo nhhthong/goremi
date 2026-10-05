@@ -32,7 +32,7 @@ func TestLoadConfigTheme(t *testing.T) {
 
 func TestLoadConfigAllKeys(t *testing.T) {
 	got := LoadConfig(writeConfig(t, "[ui]\ntheme = \"nord\"\nshow_artwork = true\nshow_spectrum = true\n"))
-	want := Config{Theme: "nord", ShowArtwork: true, ShowSpectrum: true}
+	want := Config{Theme: "nord", ShowArtwork: true, ShowSpectrum: true, Mouse: true}
 	if got != want {
 		t.Fatalf("LoadConfig = %+v, want %+v", got, want)
 	}

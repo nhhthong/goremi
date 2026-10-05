@@ -35,6 +35,7 @@ type Config struct {
 	Theme        string
 	ShowArtwork  bool
 	ShowSpectrum bool
+	Mouse        bool
 }
 
 // configFile is the TOML shape; the show keys are pointers to tell an absent key from false.
@@ -43,11 +44,14 @@ type configFile struct {
 		Theme        string `toml:"theme"`
 		ShowArtwork  *bool  `toml:"show_artwork"`
 		ShowSpectrum *bool  `toml:"show_spectrum"`
+		Mouse        *bool  `toml:"mouse"`
 	} `toml:"ui"`
 }
 
 // defaultConfig is what the app uses without a (valid) config file.
-func defaultConfig() Config { return Config{Theme: "default", ShowArtwork: true, ShowSpectrum: true} }
+func defaultConfig() Config {
+	return Config{Theme: "default", ShowArtwork: true, ShowSpectrum: true, Mouse: true}
+}
 
 // LoadConfig reads the file at path. A missing or unparsable file, a theme not in the list and an absent key all fall back to the defaults.
 func LoadConfig(path string) Config {
@@ -65,6 +69,9 @@ func LoadConfig(path string) Config {
 	if f.UI.ShowSpectrum != nil {
 		c.ShowSpectrum = *f.UI.ShowSpectrum
 	}
+	if f.UI.Mouse != nil {
+		c.Mouse = *f.UI.Mouse
+	}
 	return c
 }
 
@@ -76,7 +83,7 @@ func LoadConfig(path string) Config {
 func SaveTheme(path, name string) error {
 	c := LoadConfig(path)
 	var f configFile
-	f.UI.Theme, f.UI.ShowArtwork, f.UI.ShowSpectrum = name, &c.ShowArtwork, &c.ShowSpectrum
+	f.UI.Theme, f.UI.ShowArtwork, f.UI.ShowSpectrum, f.UI.Mouse = name, &c.ShowArtwork, &c.ShowSpectrum, &c.Mouse
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
@@ -94,8 +101,9 @@ func SaveTheme(path, name string) error {
 
 // NewFromConfig starts the app with the theme named in the config file at path (dark when there is none).
 func NewFromConfig(path string, p provider.Provider) Model {
-	t, _ := theme.ByName(LoadConfig(path).Theme)
-	return New(p).WithTheme(t)
+	c := LoadConfig(path)
+	t, _ := theme.ByName(c.Theme)
+	return New(p).WithTheme(t).WithMouse(c.Mouse)
 }
 
 // END: NewFromConfig
@@ -109,6 +117,8 @@ Usage:
   goremi          open the player
   goremi theme    choose a theme
   goremi help     show this help
+
+With the mouse on ([ui] mouse = true), selecting text needs Shift (Option on macOS).
 `
 
 // Run is the goremi command. With the argument "theme" it first shows the theme picker and, once a theme is saved, opens the app with it;
@@ -134,7 +144,9 @@ func Run(args []string, path string, p provider.Provider, out io.Writer, run fun
 			return nil
 		}
 	}
-	_, err := run(NewFromConfig(path, p))
+	pl := newMpvPlayer()
+	defer pl.Close()
+	_, err := run(NewFromConfig(path, p).WithPlayer(pl))
 	return err
 }
 

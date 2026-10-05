@@ -36,3 +36,23 @@ func TestRunHelpPrintsText(t *testing.T) {
 }
 
 // END: TestRunHelpPrintsText
+
+// START: TestHelpMentionsShift
+
+func TestHelpMentionsShift(t *testing.T) {
+	if _, out, _ := runHelp(t); !strings.Contains(out, "Shift") {
+		t.Fatalf("help does not mention Shift:\n%s", out)
+	}
+}
+
+// END: TestHelpMentionsShift
+
+// START: TestHelpMentionsOption
+
+func TestHelpMentionsOption(t *testing.T) {
+	if _, out, _ := runHelp(t); !strings.Contains(out, "Option") {
+		t.Fatalf("help does not mention Option:\n%s", out)
+	}
+}
+
+// END: TestHelpMentionsOption

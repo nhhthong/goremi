@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os/exec"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -41,11 +42,26 @@ type Model struct {
 	// width is the terminal width from the last WindowSizeMsg; 0 until the first one.
 	width int
 	theme theme.Theme
+	// player plays the resolved URL; nil until WithPlayer sets one.
+	player Player
+	// plays queues Play calls for the player; set with it.
+	plays *playQueue
+	// mouse tells whether the view asks for mouse events.
+	mouse bool
+	// playing is the track last asked to play; artist is the artist line of the panel, empty until a track plays.
+	playing provider.Track
+	artist  string
+	// paused tells the play/pause glyph; the keys toggle it, as the app does not hear mpv's pause.
+	paused bool
+	// elapsed and total are what the player last reported; total 0 means the track's own length.
+	elapsed, total time.Duration
+	// ticking is true while a tick loop runs, so a second play does not start another.
+	ticking bool
 }
 
 // New starts with the focus on the search input (spec §3).
 func New(p provider.Provider) Model {
-	return Model{provider: p, focus: FocusInput, results: ui.NewResults(p, "", nil), theme: theme.Default()}
+	return Model{provider: p, focus: FocusInput, results: ui.NewResults(p, "", nil), theme: theme.Default(), mouse: true}
 }
 
 func (m Model) Focus() Focus  { return m.focus }
@@ -66,6 +82,12 @@ func (m Model) WithTheme(t theme.Theme) Model {
 	return m
 }
 
+// WithMouse returns a copy that asks for mouse events, or not.
+func (m Model) WithMouse(on bool) Model {
+	m.mouse = on
+	return m
+}
+
 // WithFocus returns a copy with the focus set.
 func (m Model) WithFocus(f Focus) Model {
 	m.focus = f
@@ -76,7 +98,13 @@ func (m Model) WithFocus(f Focus) Model {
 
 // START: Update
 
-func (m Model) Init() tea.Cmd { return nil }
+// Init waits for the events of the player, when there is one.
+func (m Model) Init() tea.Cmd {
+	if m.player == nil {
+		return nil
+	}
+	return waitEvent(m.player.Events())
+}
 
 // PlayMsg asks the player to play the track; Enter on a track line returns it.
 type PlayMsg struct{ Track provider.Track }
@@ -106,6 +134,30 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	}
+	if p, ok := msg.(PlayMsg); ok {
+		return m.startPlay(p.Track)
+	}
+	if r, ok := msg.(resolvedMsg); ok {
+		return m.playResolved(r)
+	}
+	if p, ok := msg.(playedMsg); ok {
+		return m.played(p)
+	}
+	if _, ok := msg.(tickMsg); ok {
+		return m.onTick()
+	}
+	if p, ok := msg.(progressMsg); ok {
+		return m.onProgress(p)
+	}
+	if c, ok := msg.(tea.MouseClickMsg); ok {
+		return m.click(c.Mouse())
+	}
+	if ev, ok := msg.(playerEventMsg); ok {
+		return m.onPlayerEvent(ev)
+	}
+	if d, ok := msg.(detailsMsg); ok {
+		return m.showDetails(d)
+	}
 	if w, ok := msg.(tea.WindowSizeMsg); ok {
 		m.width = w.Width
 		return m, nil
@@ -130,6 +182,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.focus = FocusInput
 		case k.Code == 'q':
 			return m, tea.Quit
+		case k.Code == 'k' || k.Code == tea.KeySpace:
+			m = m.pauseKey()
+		case k.Code == 'j' || k.Code == tea.KeyLeft:
+			m.seekKey(-seekStep)
+		case k.Code == 'l' || k.Code == tea.KeyRight:
+			m.seekKey(seekStep)
+		case k.Code == 'n':
+			return m, m.stepTrack(1)
+		case k.Code == 'p':
+			return m, m.stepTrack(-1)
 		case k.Code == tea.KeyUp || k.Code == tea.KeyDown:
 			m.results, _ = m.results.Update(k)
 		case k.Code == tea.KeyEnter:
@@ -184,6 +246,15 @@ func (m Model) View() tea.View {
 	if m.notice != "" {
 		out += "\n" + m.notice
 	}
+	panel := ui.PlayerPanel(m.theme)
+	if m.artist != "" {
+		total := m.playing.Duration
+		if m.total > 0 {
+			total = m.total
+		}
+		panel += "\n" + ui.ArtistLine(m.theme, m.artist) + "\n" + ui.TitleLine(m.theme, m.playing.Title) +
+			"\n" + ui.BarLine(m.theme, ui.PanelWidth, m.elapsed, total) + "\n" + ui.ClockText(m.elapsed, total) + "\n" + ui.ControlsLine(m.theme, m.paused)
+	}
 	list := ""
 	if len(m.results.Tracks()) > 0 {
 		list = ui.PaintResults(m.theme, m.results.RenderWidth(m.listWidth()), m.results.Selected(), len(m.results.Tracks()))
@@ -194,19 +265,29 @@ func (m Model) View() tea.View {
 			out += "\n" + list
 		}
 	case m.width >= sideBySideMin && list != "":
-		out += "\n" + ui.JoinPanes(list, ui.PlayerPanel(m.theme))
+		out += "\n" + ui.JoinPanes(list, panel)
 	case m.width >= sideBySideMin:
-		out += "\n" + ui.PlayerPanel(m.theme)
+		out += "\n" + panel
 	default: // narrow: search, panel, list from top to bottom
-		out += "\n" + ui.PlayerPanel(m.theme)
+		out += "\n" + panel
 		if list != "" {
 			out += "\n" + list
 		}
 	}
+	if m.focus == FocusList && m.artist != "" { // a track plays and the list has focus
+		out += "\n" + hint.Render(playbackHint)
+	}
 	v := tea.NewView(out)
 	v.AltScreen = true
+	v.MouseMode = tea.MouseModeNone
+	if m.mouse {
+		v.MouseMode = tea.MouseModeCellMotion
+	}
 	return v
 }
+
+// playbackHint tells the playback keys; it shows while a track plays and the list has focus.
+const playbackHint = "j -10s  k pause  l +10s  p prev  n next"
 
 // listWidth is the width a list line may have: beside the 40-column panel and its two-space gap from sideBySideMin, the whole width when stacked, 0 (no limit) until the width is known.
 func (m Model) listWidth() int {
