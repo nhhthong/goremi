@@ -57,6 +57,8 @@ type Model struct {
 	elapsed, total time.Duration
 	// ticking is true while a tick loop runs, so a second play does not start another.
 	ticking bool
+	// log writes a line to the log file; nil writes nothing.
+	log func(format string, a ...any)
 }
 
 // New starts with the focus on the search input (spec §3).
@@ -79,6 +81,12 @@ func (m Model) Theme() theme.Theme { return m.theme }
 // WithTheme returns a copy that draws with t.
 func (m Model) WithTheme(t theme.Theme) Model {
 	m.theme = t
+	return m
+}
+
+// WithLog returns a copy that writes its log lines with f.
+func (m Model) WithLog(f func(format string, a ...any)) Model {
+	m.log = f
 	return m
 }
 
@@ -247,12 +255,12 @@ func (m Model) View() tea.View {
 		out += "\n" + m.notice
 	}
 	panel := ui.PlayerPanel(m.theme)
-	if m.artist != "" {
+	if m.artist != "" { // a track has played: the logo goes
 		total := m.playing.Duration
 		if m.total > 0 {
 			total = m.total
 		}
-		panel += "\n" + ui.ArtistLine(m.theme, m.artist) + "\n" + ui.TitleLine(m.theme, m.playing.Title) +
+		panel = ui.ArtistLine(m.theme, m.artist) + "\n" + ui.TitleLine(m.theme, m.playing.Title) +
 			"\n" + ui.BarLine(m.theme, ui.PanelWidth, m.elapsed, total) + "\n" + ui.ClockText(m.elapsed, total) + "\n" + ui.ControlsLine(m.theme, m.paused)
 	}
 	list := ""

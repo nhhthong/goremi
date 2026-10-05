@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net"
 	"os/exec"
+	"strings"
 	"sync"
 	"time"
 )
@@ -40,7 +41,8 @@ type Player struct {
 	mu      sync.Mutex // guards the fields below and serialises writes to conn
 	nextID  int
 	pending map[int]chan answer
-	dead    bool // the connection to mpv is gone
+	dead    bool                          // the connection to mpv is gone
+	log     func(format string, a ...any) // gets the warn and error messages of mpv; nil means none
 }
 
 // END: Player
@@ -51,7 +53,10 @@ type Player struct {
 func Start() (*Player, error) { return StartContext(context.Background()) }
 
 // StartContext is Start that gives up when ctx ends: it stops its mpv and removes the private directory.
-func StartContext(ctx context.Context) (*Player, error) {
+func StartContext(ctx context.Context) (*Player, error) { return StartLogged(ctx, nil) }
+
+// StartLogged is StartContext that also asks mpv for its log messages and gives the warn and error ones to log.
+func StartLogged(ctx context.Context, log func(format string, a ...any)) (*Player, error) {
 	path, err := exec.LookPath("mpv")
 	if err != nil {
 		return nil, err
@@ -77,8 +82,13 @@ func StartContext(ctx context.Context) (*Player, error) {
 		cleanup()
 		return nil, err
 	}
-	p := &Player{cmd: cmd, conn: conn, cleanup: cleanup, exited: exited, events: make(chan Event, 16), pending: map[int]chan answer{}}
+	p := &Player{cmd: cmd, conn: conn, cleanup: cleanup, exited: exited, events: make(chan Event, 16), pending: map[int]chan answer{}, log: log}
 	go p.read()
+	if log != nil {
+		if _, err := p.command("request_log_messages", "warn"); err != nil {
+			log("mpv: cannot ask for log messages: %v", err)
+		}
+	}
 	return p, nil
 }
 
@@ -124,8 +134,15 @@ func (p *Player) read() {
 			RequestID int    `json:"request_id"`
 			Event     string `json:"event"`
 			Reason    string `json:"reason"`
+			Level     string `json:"level"`
+			Prefix    string `json:"prefix"`
+			Text      string `json:"text"`
 		}
 		if json.Unmarshal(line, &m) != nil {
+			continue
+		}
+		if m.Event == "log-message" {
+			p.logMessage(m.Level, m.Prefix, m.Text)
 			continue
 		}
 		if m.Event == "end-file" && m.Reason == "eof" {
@@ -154,6 +171,17 @@ func (p *Player) read() {
 	p.mu.Unlock()
 	p.emit(Done)
 	close(p.events)
+}
+
+// logMessage writes a warn or error message of mpv to the log; the lines that carry the spectrum bands are not log lines.
+func (p *Player) logMessage(level, prefix, text string) {
+	if p.log == nil || (level != "warn" && level != "error") {
+		return
+	}
+	if strings.HasPrefix(text, "lavfi.band=") || strings.HasPrefix(text, "lavfi.astats.") {
+		return
+	}
+	p.log("mpv [%s] %s", prefix, strings.TrimRight(text, "\n"))
 }
 
 // emit queues an event; one nobody reads and the queue cannot hold is dropped, so the reader never blocks.
