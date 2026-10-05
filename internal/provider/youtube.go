@@ -43,6 +43,16 @@ type YouTubeProvider struct {
 	Runner Runner
 	// Timeout limits one search; zero means SearchTimeout.
 	Timeout time.Duration
+	// Log, when set, gets the stderr of a failing yt-dlp.
+	Log func(format string, a ...any)
+}
+
+// logFailure sends the stderr of a failed yt-dlp run to Log.
+func (p *YouTubeProvider) logFailure(err error) {
+	var ee *exec.ExitError
+	if p.Log != nil && errors.As(err, &ee) && len(ee.Stderr) > 0 {
+		p.Log("yt-dlp: %s", strings.TrimSpace(string(ee.Stderr)))
+	}
 }
 
 // run uses the injected Runner, else the real yt-dlp via os/exec (no shell).
@@ -50,7 +60,9 @@ func (p *YouTubeProvider) run(args ...string) ([]byte, error) {
 	if p.Runner != nil {
 		return p.Runner(args...)
 	}
-	return exec.Command("yt-dlp", args...).Output()
+	out, err := exec.Command("yt-dlp", args...).Output()
+	p.logFailure(err)
+	return out, err
 }
 
 // END: Runner
@@ -77,6 +89,7 @@ func (p *YouTubeProvider) runSearch(args ...string) ([]byte, error) {
 		} else {
 			r.out, r.err = exec.CommandContext(ctx, "yt-dlp", args...).Output()
 		}
+		p.logFailure(r.err)
 		done <- r
 	}()
 	select {

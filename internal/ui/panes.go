@@ -1,4 +1,4 @@
-// Layout of the search view: track list on the left, artwork pane on the right.
+// Layout of the search view: track list on the left, player panel on the right.
 package ui
 
 import (

@@ -11,8 +11,8 @@ import (
 
 func TestShowKeysDefaultTrue(t *testing.T) {
 	got := LoadConfig(writeConfig(t, "[ui]\ntheme = \"default\"\n"))
-	if !got.ShowArtwork || !got.ShowSpectrum {
-		t.Fatalf("LoadConfig = %+v, want both show keys true", got)
+	if !got.ShowSpectrum {
+		t.Fatalf("LoadConfig = %+v, want the show key true", got)
 	}
 }
 
@@ -21,9 +21,9 @@ func TestShowKeysDefaultTrue(t *testing.T) {
 // START: TestShowKeyFalseKept
 
 func TestShowKeyFalseKept(t *testing.T) {
-	got := LoadConfig(writeConfig(t, "[ui]\nshow_artwork = false\n"))
-	if got.ShowArtwork || !got.ShowSpectrum {
-		t.Fatalf("LoadConfig = %+v, want ShowArtwork false and ShowSpectrum true", got)
+	got := LoadConfig(writeConfig(t, "[ui]\nshow_spectrum = false\n"))
+	if got.ShowSpectrum {
+		t.Fatalf("LoadConfig = %+v, want ShowSpectrum false", got)
 	}
 }
 
@@ -43,7 +43,7 @@ func TestUnlistedThemeFallsBack(t *testing.T) {
 
 func TestMissingConfigDefaults(t *testing.T) {
 	got := LoadConfig(filepath.Join(t.TempDir(), "none.toml"))
-	if want := (Config{Theme: "default", ShowArtwork: true, ShowSpectrum: true, Mouse: true}); got != want {
+	if want := (Config{Theme: "default", ShowSpectrum: true, Mouse: true}); got != want {
 		t.Fatalf("LoadConfig = %+v, want %+v", got, want)
 	}
 }
@@ -54,7 +54,7 @@ func TestMissingConfigDefaults(t *testing.T) {
 
 func TestBrokenConfigFallsBack(t *testing.T) {
 	path := writeConfig(t, "[ui]\ntheme = default\n")
-	if got, want := LoadConfig(path), (Config{Theme: "default", ShowArtwork: true, ShowSpectrum: true, Mouse: true}); got != want {
+	if got, want := LoadConfig(path), (Config{Theme: "default", ShowSpectrum: true, Mouse: true}); got != want {
 		t.Fatalf("broken file: LoadConfig = %+v, want %+v", got, want)
 	}
 	if err := os.WriteFile(path, []byte("[ui]\ntheme = \"nord\"\n"), 0o600); err != nil {
@@ -84,11 +84,11 @@ func TestSaveThemeCreatesDir(t *testing.T) {
 // START: TestSaveThemeKeepsOtherKeys
 
 func TestSaveThemeKeepsOtherKeys(t *testing.T) {
-	path := writeConfig(t, "[ui]\ntheme = \"default\"\nshow_artwork = false\nshow_spectrum = true\n")
+	path := writeConfig(t, "[ui]\ntheme = \"default\"\nshow_spectrum = false\n")
 	if err := SaveTheme(path, "dracula"); err != nil {
 		t.Fatal(err)
 	}
-	want := Config{Theme: "dracula", ShowArtwork: false, ShowSpectrum: true, Mouse: true}
+	want := Config{Theme: "dracula", ShowSpectrum: false, Mouse: true}
 	if got := LoadConfig(path); got != want {
 		t.Fatalf("LoadConfig = %+v, want %+v", got, want)
 	}

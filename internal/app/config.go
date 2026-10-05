@@ -33,7 +33,6 @@ func ConfigPath() (string, error) {
 // Config is what config.toml holds under [ui].
 type Config struct {
 	Theme        string
-	ShowArtwork  bool
 	ShowSpectrum bool
 	Mouse        bool
 }
@@ -42,7 +41,6 @@ type Config struct {
 type configFile struct {
 	UI struct {
 		Theme        string `toml:"theme"`
-		ShowArtwork  *bool  `toml:"show_artwork"`
 		ShowSpectrum *bool  `toml:"show_spectrum"`
 		Mouse        *bool  `toml:"mouse"`
 	} `toml:"ui"`
@@ -50,7 +48,7 @@ type configFile struct {
 
 // defaultConfig is what the app uses without a (valid) config file.
 func defaultConfig() Config {
-	return Config{Theme: "default", ShowArtwork: true, ShowSpectrum: true, Mouse: true}
+	return Config{Theme: "default", ShowSpectrum: true, Mouse: true}
 }
 
 // LoadConfig reads the file at path. A missing or unparsable file, a theme not in the list and an absent key all fall back to the defaults.
@@ -62,9 +60,6 @@ func LoadConfig(path string) Config {
 	c := defaultConfig()
 	if _, ok := theme.ByName(f.UI.Theme); ok {
 		c.Theme = f.UI.Theme
-	}
-	if f.UI.ShowArtwork != nil {
-		c.ShowArtwork = *f.UI.ShowArtwork
 	}
 	if f.UI.ShowSpectrum != nil {
 		c.ShowSpectrum = *f.UI.ShowSpectrum
@@ -83,7 +78,7 @@ func LoadConfig(path string) Config {
 func SaveTheme(path, name string) error {
 	c := LoadConfig(path)
 	var f configFile
-	f.UI.Theme, f.UI.ShowArtwork, f.UI.ShowSpectrum, f.UI.Mouse = name, &c.ShowArtwork, &c.ShowSpectrum, &c.Mouse
+	f.UI.Theme, f.UI.ShowSpectrum, f.UI.Mouse = name, &c.ShowSpectrum, &c.Mouse
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
@@ -145,8 +140,16 @@ func Run(args []string, path string, p provider.Provider, out io.Writer, run fun
 		}
 	}
 	pl := newMpvPlayer()
+	var logf func(string, ...any)
+	if path, err := LogPath(); err == nil { // the log gets the play line, the stderr of yt-dlp and the warn and error messages of mpv
+		lg, _ := OpenLog(path) // a log that cannot be opened discards (never a crash)
+		pl.log, logf = lg.Printf, lg.Printf
+		if yt, ok := p.(*provider.YouTubeProvider); ok && yt.Log == nil {
+			yt.Log = lg.Printf
+		}
+	}
 	defer pl.Close()
-	_, err := run(NewFromConfig(path, p).WithPlayer(pl))
+	_, err := run(NewFromConfig(path, p).WithPlayer(pl).WithLog(logf))
 	return err
 }
 

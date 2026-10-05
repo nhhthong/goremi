@@ -107,7 +107,13 @@ func detailsCmd(p provider.Provider, track provider.Track) tea.Cmd {
 // startPlay begins a play request: the artist line reads Loading… until the details arrive.
 func (m Model) startPlay(track provider.Track) (Model, tea.Cmd) {
 	m.playing, m.artist, m.paused, m.elapsed, m.total = track, loadingArtist, false, 0, 0
-	return m, resolveCmd(m.provider, track)
+	resolve, log := resolveCmd(m.provider, track), m.log
+	return m, func() tea.Msg { // the play line names the track for the yt-dlp and mpv lines that follow
+		if log != nil {
+			log("play %s %q", track.ID, track.Title)
+		}
+		return resolve()
+	}
 }
 
 // playResolved queues the URL of a resolved track for the player and returns at once: the outcome comes back as a playedMsg. A failed Resolve plays nothing and says so under Search:.
@@ -175,6 +181,7 @@ type mpvPlayer struct {
 	closed bool
 	ctx    context.Context // ends at Close, to interrupt a start in progress
 	cancel context.CancelFunc
+	log    func(format string, a ...any) // gets the warn and error messages of mpv; nil means none
 }
 
 // errPlayerClosed is what Play returns once Close has run.
@@ -208,7 +215,7 @@ func (m *mpvPlayer) Play(url string) error {
 		return errPlayerClosed
 	}
 	if p == nil {
-		started, err := player.StartContext(m.ctx)
+		started, err := player.StartLogged(m.ctx, m.log)
 		if err != nil {
 			return err
 		}
