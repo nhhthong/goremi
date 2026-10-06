@@ -19,7 +19,11 @@ import (
 // isolatedTmp points TMPDIR at a new directory and returns it, so the test sees only the directories Start makes.
 func isolatedTmp(t *testing.T) string {
 	t.Helper()
-	dir := t.TempDir()
+	dir, err := os.MkdirTemp("/tmp", "g") // short: a unix socket path is limited to 104 bytes on macOS
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
 	t.Setenv("TMPDIR", dir)
 	return dir
 }

@@ -9,6 +9,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"goremi/internal/provider"
 	"goremi/internal/ui"
@@ -59,9 +60,15 @@ type Model struct {
 	ticking bool
 	// log writes a line to the log file; nil writes nothing.
 	log func(format string, a ...any)
+	// spectrum is the config key show_spectrum; bars are the heights the spectrum draws now, framing tells that its frame tick runs, ended that the last track of the list ended.
+	spectrum       bool
+	bars           [ui.SpectrumBars]int
+	framing, ended bool
+	// intn is the random source of the idle bars (rand.Intn unless a test sets another).
+	intn func(n int) int
 }
 
-// New starts with the focus on the search input (spec §3).
+// New starts with the focus on the search input (spec §3). The spectrum is off until WithSpectrum turns it on: NewFromConfig does, as show_spectrum is true unless the config says otherwise.
 func New(p provider.Provider) Model {
 	return Model{provider: p, focus: FocusInput, results: ui.NewResults(p, "", nil), theme: theme.Default(), mouse: true}
 }
@@ -83,6 +90,15 @@ func (m Model) WithTheme(t theme.Theme) Model {
 	m.theme = t
 	return m
 }
+
+// WithSpectrum returns a copy that draws the spectrum at the top of the player panel, or not (the config key show_spectrum).
+func (m Model) WithSpectrum(on bool) Model {
+	m.spectrum = on
+	return m
+}
+
+// Spectrum tells whether the spectrum shows at the top of the player panel.
+func (m Model) Spectrum() bool { return m.spectrum }
 
 // WithLog returns a copy that writes its log lines with f.
 func (m Model) WithLog(f func(format string, a ...any)) Model {
@@ -126,6 +142,9 @@ type searchedMsg struct {
 
 // Update handles keys: Ctrl+C quits anywhere; in the input Esc quits, Tab moves to the list, Enter searches, other keys edit the query; in the list Tab and Esc return to the input, q quits, ↑/↓ select and Enter plays the track or loads more. The focus moves to the list when results arrive without error.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if _, ok := msg.(frameMsg); ok {
+		return m.onFrame()
+	}
 	if r, ok := msg.(searchedMsg); ok {
 		m.searching = false
 		if r.err != nil {
@@ -250,7 +269,11 @@ const sideBySideMin = 80
 func (m Model) View() tea.View {
 	hint := lipgloss.NewStyle().Faint(true).Foreground(lipgloss.Color(m.theme.Muted))
 	label := lipgloss.NewStyle().Foreground(lipgloss.Color(m.theme.Accent))
-	out := hint.Render("Ctrl+C: quit · run goremi theme to choose a theme") + "\n" + label.Render("Search:") + " " + m.input.Value()
+	hintText := hint.Render("Ctrl+C: quit · run goremi theme to choose a theme")
+	if m.width > 0 { // a hint wider than the terminal would wrap and move the Search: line
+		hintText = ansi.Truncate(hintText, m.width, "…")
+	}
+	out := hintText + "\n" + label.Render("Search:") + " " + m.input.Value()
 	if m.notice != "" {
 		out += "\n" + m.notice
 	}
@@ -262,6 +285,9 @@ func (m Model) View() tea.View {
 		}
 		panel = ui.ArtistLine(m.theme, m.artist) + "\n" + ui.TitleLine(m.theme, m.playing.Title) +
 			"\n" + ui.BarLine(m.theme, ui.PanelWidth, m.elapsed, total) + "\n" + ui.ClockText(m.elapsed, total) + "\n" + ui.ControlsLine(m.theme, m.paused)
+		if m.spectrum { // the spectrum takes the top of the panel, above the artist line
+			panel = strings.Join(ui.PaintSpectrum(m.theme, ui.SpectrumRows(m.bars)), "\n") + "\n" + panel
+		}
 	}
 	list := ""
 	if len(m.results.Tracks()) > 0 {

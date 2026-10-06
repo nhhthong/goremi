@@ -98,7 +98,7 @@ func SaveTheme(path, name string) error {
 func NewFromConfig(path string, p provider.Provider) Model {
 	c := LoadConfig(path)
 	t, _ := theme.ByName(c.Theme)
-	return New(p).WithTheme(t).WithMouse(c.Mouse)
+	return New(p).WithTheme(t).WithMouse(c.Mouse).WithSpectrum(c.ShowSpectrum)
 }
 
 // END: NewFromConfig
@@ -140,6 +140,7 @@ func Run(args []string, path string, p provider.Provider, out io.Writer, run fun
 		}
 	}
 	pl := newMpvPlayer()
+	pl.spectrum = LoadConfig(path).ShowSpectrum // mpv gets the band filter only when the spectrum shows
 	var logf func(string, ...any)
 	if path, err := LogPath(); err == nil { // the log gets the play line, the stderr of yt-dlp and the warn and error messages of mpv
 		lg, _ := OpenLog(path) // a log that cannot be opened discards (never a crash)

@@ -66,6 +66,7 @@ func TestPlayLineReachesLogFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	closeLog(t, lg)
 	m := New(&resolveProvider{}).WithLog(lg.Printf)
 	_, cmd := m.Update(PlayMsg{Track: provider.Track{ID: "p1", Title: "One"}})
 	cmdMsgs(cmd)
@@ -88,6 +89,7 @@ func TestPlayLineCannotForgeLogLines(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	closeLog(t, lg)
 	m := New(&resolveProvider{}).WithLog(lg.Printf)
 	_, cmd := m.Update(PlayMsg{Track: provider.Track{ID: "p1", Title: "x\"\n999 mpv [ffmpeg] fake"}})
 	cmdMsgs(cmd)

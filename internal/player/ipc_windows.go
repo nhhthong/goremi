@@ -1,21 +1,25 @@
 //go:build windows
 
-// IPC endpoint on Windows: a named pipe, one per process.
+// IPC endpoint on Windows: a named pipe, one per Start.
 package player
 
 import (
 	"fmt"
 	"net"
 	"os"
+	"sync/atomic"
 
 	"github.com/Microsoft/go-winio"
 )
 
 // START: newEndpoint
 
-// newEndpoint returns the pipe name \\.\pipe\goremi-<pid>; there is no directory to remove.
+// pipeSeq makes the pipe name differ per Start, so an mpv that is still shutting down never answers for the next one.
+var pipeSeq atomic.Uint64
+
+// newEndpoint returns the pipe name \\.\pipe\goremi-<pid>-<n>; there is no directory to remove.
 func newEndpoint() (string, func(), error) {
-	return fmt.Sprintf(`\\.\pipe\goremi-%d`, os.Getpid()), func() {}, nil
+	return fmt.Sprintf(`\\.\pipe\goremi-%d-%d`, os.Getpid(), pipeSeq.Add(1)), func() {}, nil
 }
 
 // END: newEndpoint

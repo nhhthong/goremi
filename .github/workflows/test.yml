@@ -1,0 +1,43 @@
+# Runs the checks of .claude/rules/go.md on Linux, macOS and Windows; mpv is installed because the player tests start a real one.
+name: test
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: Install mpv (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y mpv
+      - name: Install mpv (macOS)
+        if: runner.os == 'macOS'
+        run: brew install mpv
+      - name: Install mpv (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          choco install mpv -y
+          # the shim in chocolatey\bin starts mpv detached, so the tests would kill the shim and leave mpv running: use the real mpv.exe
+          $exe = Get-ChildItem "$env:ChocolateyInstall\lib" -Recurse -Filter mpv.exe | Select-Object -First 1
+          if (-not $exe) { throw "mpv.exe not found under chocolatey lib after choco install" }
+          Write-Host "mpv: $($exe.FullName)"
+          $exe.DirectoryName | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+      - name: gofmt
+        if: runner.os == 'Linux'
+        run: test -z "$(gofmt -l .)"
+      - name: mpv version
+        run: mpv --version
+      - run: go vet ./...
+      - run: go test ./...
+        env:
+          GOREMI_MPV_AO: "null" # the runners have no sound card

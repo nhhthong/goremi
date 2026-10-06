@@ -77,8 +77,8 @@ func TestSeekForward10(t *testing.T) {
 	}
 	time.Sleep(100 * time.Millisecond)
 	after := p.Position()
-	if diff := (after - before).Round(time.Millisecond); diff < 10*time.Second || diff >= 10500*time.Millisecond {
-		t.Fatalf("Position() %v then %v after Seek(10), want a step of 10s to 10.5s", before, after)
+	if diff := (after - before).Round(time.Millisecond); diff < 9700*time.Millisecond || diff >= 10500*time.Millisecond { // null audio output reports up to 0.3s early
+		t.Fatalf("Position() %v then %v after Seek(10), want a step of 9.7s to 10.5s", before, after)
 	}
 }
 

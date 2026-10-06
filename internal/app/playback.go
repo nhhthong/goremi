@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
 	"os/exec"
 	"strings"
 	"sync"
@@ -108,12 +109,58 @@ func detailsCmd(p provider.Provider, track provider.Track) tea.Cmd {
 func (m Model) startPlay(track provider.Track) (Model, tea.Cmd) {
 	m.playing, m.artist, m.paused, m.elapsed, m.total = track, loadingArtist, false, 0, 0
 	resolve, log := resolveCmd(m.provider, track), m.log
-	return m, func() tea.Msg { // the play line names the track for the yt-dlp and mpv lines that follow
+	play := func() tea.Msg { // the play line names the track for the yt-dlp and mpv lines that follow
 		if log != nil {
 			log("play %s %q", track.ID, track.Title)
 		}
 		return resolve()
 	}
+	m.ended = false
+	return m, play
+}
+
+// frameMsg asks the app to read the band levels, smooth the bars and draw a frame of the spectrum.
+type frameMsg struct{}
+
+// frameEvery is the interval between two frames of the spectrum: 30 frames per second, as the spec decides.
+const frameEvery = time.Second / 30
+
+// frameCmd waits one frame and then gives a frameMsg.
+func frameCmd() tea.Cmd {
+	return tea.Tick(frameEvery, func(time.Time) tea.Msg { return frameMsg{} })
+}
+
+// spectrumSource is a Player that also reports the band levels of the spectrum.
+type spectrumSource interface {
+	Bands() [ui.SpectrumBars]float64
+	Spectrum() bool
+}
+
+// onFrame moves the bars one frame: towards the band levels while audio plays, towards random idle heights when paused or after the last track ended, towards nothing when mpv runs without the spectrum.
+// The frame tick goes on while a track is on; with none (a failed play) it ends.
+func (m Model) onFrame() (Model, tea.Cmd) {
+	if m.artist == "" {
+		m.framing = false
+		return m, nil
+	}
+	var target [ui.SpectrumBars]int
+	src, ok := m.player.(spectrumSource)
+	switch {
+	case m.paused || m.ended:
+		intn := m.intn
+		if intn == nil {
+			intn = rand.Intn
+		}
+		target = ui.IdleHeights(intn)
+	case ok && src.Spectrum():
+		for i, db := range src.Bands() {
+			target[i] = ui.SpectrumHeight(db)
+		}
+	}
+	for i := range m.bars {
+		m.bars[i] = ui.SmoothHeight(m.bars[i], target[i])
+	}
+	return m, frameCmd()
 }
 
 // playResolved queues the URL of a resolved track for the player and returns at once: the outcome comes back as a playedMsg. A failed Resolve plays nothing and says so under Search:.
@@ -151,7 +198,7 @@ func playMessage(err error, title string) string {
 	return fmt.Sprintf("Cannot play %q.", title)
 }
 
-// showDetails puts the artist of the playing track on the artist line; a failed load falls back to the artist the search gave. The first details of a play also start the tick that refreshes the bar and the clock.
+// showDetails puts the artist of the playing track on the artist line; a failed load falls back to the artist the search gave. The first details of a play also start the tick that refreshes the bar and the clock, and the frame tick of the spectrum when it shows.
 func (m Model) showDetails(d detailsMsg) (Model, tea.Cmd) {
 	if d.track.ID != m.playing.ID {
 		return m, nil // a track played since: this answer is stale
@@ -162,11 +209,16 @@ func (m Model) showDetails(d detailsMsg) (Model, tea.Cmd) {
 	} else if d.track.Duration > 0 {
 		m.playing.Duration = d.track.Duration
 	}
-	if m.ticking {
-		return m, nil
+	var cmds []tea.Cmd
+	if !m.ticking {
+		m.ticking = true
+		cmds = append(cmds, tickCmd())
 	}
-	m.ticking = true
-	return m, tickCmd()
+	if m.spectrum && !m.framing { // the frame tick of the spectrum starts with the first details of a play
+		m.framing = true
+		cmds = append(cmds, frameCmd())
+	}
+	return m, tea.Batch(cmds...)
 }
 
 // END: playTrack
@@ -182,6 +234,9 @@ type mpvPlayer struct {
 	ctx    context.Context // ends at Close, to interrupt a start in progress
 	cancel context.CancelFunc
 	log    func(format string, a ...any) // gets the warn and error messages of mpv; nil means none
+	// spectrum starts mpv with the band filter (the config key show_spectrum); start is player.StartWith unless a test sets another.
+	spectrum bool
+	start    func(ctx context.Context, opts player.Options) (*player.Player, error)
 }
 
 // errPlayerClosed is what Play returns once Close has run.
@@ -215,7 +270,11 @@ func (m *mpvPlayer) Play(url string) error {
 		return errPlayerClosed
 	}
 	if p == nil {
-		started, err := player.StartLogged(m.ctx, m.log)
+		start := m.start
+		if start == nil {
+			start = player.StartWith
+		}
+		started, err := start(m.ctx, player.Options{Log: m.log, Spectrum: m.spectrum})
 		if err != nil {
 			return err
 		}
@@ -230,6 +289,24 @@ func (m *mpvPlayer) Play(url string) error {
 		go m.forward(started)
 	}
 	return p.Play(url)
+}
+
+// Bands is the level of each band in dB; -60 for all of them before the first Play.
+func (m *mpvPlayer) Bands() [ui.SpectrumBars]float64 {
+	if p := m.started(); p != nil {
+		return p.Bands()
+	}
+	var out [ui.SpectrumBars]float64
+	for i := range out {
+		out[i] = -60
+	}
+	return out
+}
+
+// Spectrum tells whether the running mpv has the band filter.
+func (m *mpvPlayer) Spectrum() bool {
+	p := m.started()
+	return p != nil && p.Spectrum()
 }
 
 // started returns the running player, or nil before the first Play.
@@ -336,7 +413,9 @@ func (m Model) onPlayerEvent(ev playerEventMsg) (Model, tea.Cmd) {
 		m.notice, m.artist = fmt.Sprintf("Cannot play %q.", m.playing.Title), ""
 	}
 	if ev.e == player.Ended {
-		return m, tea.Batch(waitEvent(m.player.Events()), m.stepTrack(1))
+		next := m.stepTrack(1)
+		m.ended = next == nil // the last track of the list ended: the spectrum falls idle
+		return m, tea.Batch(waitEvent(m.player.Events()), next)
 	}
 	return m, waitEvent(m.player.Events())
 }

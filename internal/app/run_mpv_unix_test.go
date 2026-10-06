@@ -54,7 +54,11 @@ func writeSilence(t *testing.T) string {
 // runWith runs the program with a fake run that calls do on the model; TMPDIR is a temp directory the test reads.
 func runWith(t *testing.T, do func(m Model, tmp string)) (tmp string) {
 	t.Helper()
-	tmp = t.TempDir()
+	tmp, err := os.MkdirTemp("/tmp", "g") // short: a unix socket path is limited to 104 bytes on macOS
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(tmp) })
 	t.Setenv("TMPDIR", tmp)
 	p := wavProvider{path: writeSilence(t)}
 	run := func(m tea.Model) (tea.Model, error) {
@@ -70,8 +74,12 @@ func runWith(t *testing.T, do func(m Model, tmp string)) (tmp string) {
 // play sends PlayMsg for a track and feeds the resolved URL back, as the event loop does.
 func play(m Model) {
 	_, cmd := m.Update(PlayMsg{Track: provider.Track{ID: "a1", Title: "One"}})
-	_, cmd = m.Update(cmd())
-	cmd() // Play runs in this command
+	for _, msg := range cmdMsgs(cmd) { // the commands of a play also hold the frame tick of the spectrum
+		if r, ok := msg.(resolvedMsg); ok {
+			_, cmd = m.Update(r)
+			cmd() // Play runs in this command
+		}
+	}
 }
 
 // endpointDirs lists the goremi-* directories in tmp.
