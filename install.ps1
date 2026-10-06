@@ -7,9 +7,10 @@ $releaseUrl = 'https://github.com/nhhthong/goremi/releases/latest/download'
 
 # START: detect system
 # A 32-bit PowerShell on 64-bit Windows reports x86 in PROCESSOR_ARCHITECTURE; PROCESSOR_ARCHITEW6432 then holds the real one.
-$arch = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
+$arch = $env:PROCESSOR_ARCHITEW6432
+if ([string]::IsNullOrEmpty($arch)) { $arch = $env:PROCESSOR_ARCHITECTURE }
 if ($arch -ne 'AMD64') {
-    [Console]::Error.WriteLine("goremi install: unsupported architecture: $arch")
+    [Console]::Error.WriteLine("goremi install: unsupported architecture: $arch (PROCESSOR_ARCHITECTURE=$env:PROCESSOR_ARCHITECTURE, PROCESSOR_ARCHITEW6432=$env:PROCESSOR_ARCHITEW6432)")
     exit 1
 }
 # END: detect system

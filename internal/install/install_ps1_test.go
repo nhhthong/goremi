@@ -15,6 +15,32 @@ function Get-Command { if (($env:FAKE_HAVE -split ',') -contains $args[0]) { [ps
 & $env:INSTALL_PS1
 exit $LASTEXITCODE`
 
+// START: withEnv
+
+// withEnv returns base without the variables the pairs name (names compare without case, as on Windows), then each pair that has a value; a pair with an empty value only removes the variable, it never sets an empty one.
+func withEnv(base []string, pairs ...string) []string {
+	drop := map[string]bool{}
+	for _, p := range pairs {
+		name, _, _ := strings.Cut(p, "=")
+		drop[strings.ToUpper(name)] = true
+	}
+	var out []string
+	for _, kv := range base {
+		name, _, _ := strings.Cut(kv, "=")
+		if !drop[strings.ToUpper(name)] {
+			out = append(out, kv)
+		}
+	}
+	for _, p := range pairs {
+		if _, value, _ := strings.Cut(p, "="); value != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// END: withEnv
+
 // START: runPs1
 
 // Ps1Run says how one install.ps1 run looks: the architecture, the tools Get-Command finds, and the download.
@@ -67,10 +93,11 @@ func runPs1(t *testing.T, r Ps1Run) Ps1Result {
 	}
 	cmd := exec.Command(pwsh, "-NoProfile", "-NonInteractive", "-Command", ps1Wrapper)
 	cmd.Dir = tmp
-	cmd.Env = append(os.Environ(), "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1", "LocalAppData="+local, "Path="+path, "PROCESSOR_ARCHITECTURE="+r.Arch, "PROCESSOR_ARCHITEW6432="+r.Arch6432, "FAKE_HAVE="+r.Have, "FAKE_BODY="+body, "WEB_LOG="+log, "PROGRESS_LOG="+progress, "INSTALL_PS1="+script)
+	pairs := []string{"DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1", "LocalAppData=" + local, "Path=" + path, "PROCESSOR_ARCHITECTURE=" + r.Arch, "PROCESSOR_ARCHITEW6432=" + r.Arch6432, "FAKE_HAVE=" + r.Have, "FAKE_BODY=" + body, "WEB_LOG=" + log, "PROGRESS_LOG=" + progress, "INSTALL_PS1=" + script, "FAKE_FAIL="}
 	if r.Fail {
-		cmd.Env = append(cmd.Env, "FAKE_FAIL=1")
+		pairs[len(pairs)-1] = "FAKE_FAIL=1"
 	}
+	cmd.Env = withEnv(os.Environ(), pairs...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	res := Ps1Result{LocalAppData: local}
