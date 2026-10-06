@@ -123,3 +123,22 @@ func TestDistIgnored(t *testing.T) {
 }
 
 // END: TestDistIgnored
+
+// START: TestLinuxBinariesStatic
+
+func TestLinuxBinariesStatic(t *testing.T) {
+	dist := buildDist(t)
+	for _, name := range []string{"goremi_linux_amd64", "goremi_linux_arm64"} {
+		f, err := elf.Open(filepath.Join(dist, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		libs, _ := f.ImportedLibraries()
+		if f.Section(".interp") != nil || len(libs) > 0 {
+			t.Errorf("%s is dynamically linked (interpreter section: %v, libraries: %v), want a static binary", name, f.Section(".interp") != nil, libs)
+		}
+		f.Close()
+	}
+}
+
+// END: TestLinuxBinariesStatic
