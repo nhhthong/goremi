@@ -100,9 +100,12 @@ type Run struct {
 	Fail     bool // curl exits 22
 	Partial  bool // with Fail: curl writes half a file first
 	Body     string
-	Mpv      bool // a fake mpv is on PATH
-	YtDlp    bool // a fake yt-dlp is on PATH
-	Stdin    bool // the script text goes to sh on stdin, as in curl | sh
+	Mpv      bool   // a fake mpv is on PATH
+	YtDlp    bool   // a fake yt-dlp is on PATH
+	Stdin    bool   // the script text goes to sh on stdin, as in curl | sh
+	Cut      int    // with Stdin: only the first Cut bytes of the script are sent (0 = all)
+	Sealed   string // a PATH directory from sealedPath to reuse (empty = make one)
+	PathHome bool   // ~/.local/bin of the home is on PATH
 }
 
 // Result is what a run left behind.
@@ -142,11 +145,22 @@ func runInstall(t *testing.T, r Run, home string) Result {
 		if err != nil {
 			t.Fatal(err)
 		}
+		if r.Cut > 0 && r.Cut < len(text) {
+			text = text[:r.Cut]
+		}
 		cmd = exec.Command(sh)
 		cmd.Stdin = bytes.NewReader(text)
 	}
 	cmd.Dir = tmp
-	cmd.Env = []string{"HOME=" + home, "PATH=" + sealedPath(t, r.Mpv, r.YtDlp), "FAKE_OS=" + r.OS, "FAKE_ARCH=" + r.Arch, "FAKE_BODY=" + body, "CURL_LOG=" + curlLog, "SUDO_LOG=" + sudoLog}
+	sealed := r.Sealed
+	if sealed == "" {
+		sealed = sealedPath(t, r.Mpv, r.YtDlp)
+	}
+	path := sealed
+	if r.PathHome {
+		path += ":" + filepath.Join(home, ".local", "bin")
+	}
+	cmd.Env = []string{"HOME=" + home, "PATH=" + path, "FAKE_OS=" + r.OS, "FAKE_ARCH=" + r.Arch, "FAKE_BODY=" + body, "CURL_LOG=" + curlLog, "SUDO_LOG=" + sudoLog}
 	if r.Fail {
 		cmd.Env = append(cmd.Env, "FAKE_CURL_FAIL=1")
 	}

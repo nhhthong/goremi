@@ -308,3 +308,56 @@ func TestPipedInstallFailure(t *testing.T) {
 }
 
 // END: piped install
+
+// START: truncated script
+
+func TestTruncatedScriptRunsNothing(t *testing.T) {
+	text, err := os.ReadFile(filepath.Join(repoRoot(t), "install.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := strings.TrimRight(string(text), "\n")
+	lastLine := strings.LastIndex(body, "\n") + 1 // every cut before the last line
+	sealed := sealedPath(t, false, false)
+	for cut := 1; cut < lastLine; cut++ {
+		res := runInstall(t, Run{OS: "Linux", Arch: "x86_64", Stdin: true, Cut: cut, Sealed: sealed}, "")
+		written, _ := os.ReadDir(res.Home)
+		if len(res.CurlURLs) != 0 || len(written) != 0 {
+			t.Fatalf("script cut at byte %d (after %q): curl calls %q, %d entries under HOME; want nothing run", cut, body[max(0, cut-30):cut], res.CurlURLs, len(written))
+		}
+	}
+}
+
+// END: truncated script
+
+// START: hints
+
+func TestPathHintWhenMissing(t *testing.T) {
+	out := reported(t, Run{OS: "Linux", Arch: "x86_64", Mpv: true, YtDlp: true})
+	if !strings.Contains(out, "~/.local/bin") || !strings.Contains(out, "PATH") {
+		t.Fatalf("stdout = %q, want a line naming ~/.local/bin and PATH", out)
+	}
+}
+
+func TestNoPathHintWhenPresent(t *testing.T) {
+	out := reported(t, Run{OS: "Linux", Arch: "x86_64", Mpv: true, YtDlp: true, PathHome: true})
+	if strings.Contains(out, "PATH") {
+		t.Fatalf("stdout = %q, want no PATH line", out)
+	}
+}
+
+func TestLinuxMpvAptHint(t *testing.T) {
+	out := reported(t, Run{OS: "Linux", Arch: "x86_64", YtDlp: true})
+	if !strings.Contains(out, "sudo apt install mpv") {
+		t.Fatalf("stdout = %q, want sudo apt install mpv", out)
+	}
+}
+
+func TestLinuxYtdlpBinaryHint(t *testing.T) {
+	out := reported(t, Run{OS: "Linux", Arch: "x86_64", Mpv: true})
+	if !strings.Contains(out, "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp") || !strings.Contains(out, "~/.local/bin/yt-dlp") {
+		t.Fatalf("stdout = %q, want the yt-dlp release binary command", out)
+	}
+}
+
+// END: hints

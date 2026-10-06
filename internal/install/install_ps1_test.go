@@ -10,24 +10,28 @@ import (
 	"testing"
 )
 
-const ps1Wrapper = `function Invoke-WebRequest { param($Uri, $OutFile) Add-Content -LiteralPath $env:WEB_LOG -Value $Uri; Copy-Item -LiteralPath $env:FAKE_BODY -Destination $OutFile }
+const ps1Wrapper = `function Invoke-WebRequest { param($Uri, $OutFile) Add-Content -LiteralPath $env:WEB_LOG -Value $Uri; Set-Content -LiteralPath $env:PROGRESS_LOG -Value $ProgressPreference; if ($env:FAKE_FAIL) { Set-Content -LiteralPath $OutFile -Value 'half'; throw 'network down' }; Copy-Item -LiteralPath $env:FAKE_BODY -Destination $OutFile }
 function Get-Command { if (($env:FAKE_HAVE -split ',') -contains $args[0]) { [pscustomobject]@{ Name = $args[0] } } }
 & $env:INSTALL_PS1
 exit $LASTEXITCODE`
 
 // START: runPs1
 
-// Ps1Run says how one install.ps1 run looks: the architecture and the tools Get-Command finds.
+// Ps1Run says how one install.ps1 run looks: the architecture, the tools Get-Command finds, and the download.
 type Ps1Run struct {
-	Arch string
-	Have string // comma-separated tool names Get-Command finds
+	Arch     string
+	Arch6432 string // PROCESSOR_ARCHITEW6432, empty = unset
+	Have     string // comma-separated tool names Get-Command finds
+	Fail     bool   // Invoke-WebRequest writes half a file and throws
+	Existing string // content of an already installed goremi.exe, empty = none
+	PathHas  bool   // the install directory is in Path
 }
 
 // Ps1Result is what a run left behind.
 type Ps1Result struct {
-	LocalAppData, Stdout, Stderr string
-	Exit                         int
-	URLs                         []string
+	LocalAppData, Stdout, Stderr, Progress string
+	Exit                                   int
+	URLs                                   []string
 }
 
 // runPs1 runs install.ps1 under pwsh; a missing pwsh fails the test, it does not skip it.
@@ -39,18 +43,34 @@ func runPs1(t *testing.T, r Ps1Run) Ps1Result {
 	}
 	tmp := t.TempDir()
 	local := filepath.Join(tmp, "LocalAppData")
+	installDir := filepath.Join(local, "Programs", "goremi")
 	if err := os.MkdirAll(local, 0o755); err != nil {
 		t.Fatal(err)
+	}
+	if r.Existing != "" {
+		if err := os.MkdirAll(installDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(installDir, "goremi.exe"), []byte(r.Existing), 0o755); err != nil {
+			t.Fatal(err)
+		}
 	}
 	body := filepath.Join(tmp, "body")
 	if err := os.WriteFile(body, []byte("fake exe body"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	log := filepath.Join(tmp, "web.log")
+	log, progress := filepath.Join(tmp, "web.log"), filepath.Join(tmp, "progress.log")
 	script, _ := filepath.Abs(filepath.Join("..", "..", "install.ps1"))
+	path := os.Getenv("PATH")
+	if r.PathHas {
+		path += string(os.PathListSeparator) + installDir
+	}
 	cmd := exec.Command(pwsh, "-NoProfile", "-NonInteractive", "-Command", ps1Wrapper)
 	cmd.Dir = tmp
-	cmd.Env = append(os.Environ(), "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1", "LocalAppData="+local, "PROCESSOR_ARCHITECTURE="+r.Arch, "FAKE_HAVE="+r.Have, "FAKE_BODY="+body, "WEB_LOG="+log, "INSTALL_PS1="+script)
+	cmd.Env = append(os.Environ(), "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1", "LocalAppData="+local, "Path="+path, "PROCESSOR_ARCHITECTURE="+r.Arch, "PROCESSOR_ARCHITEW6432="+r.Arch6432, "FAKE_HAVE="+r.Have, "FAKE_BODY="+body, "WEB_LOG="+log, "PROGRESS_LOG="+progress, "INSTALL_PS1="+script)
+	if r.Fail {
+		cmd.Env = append(cmd.Env, "FAKE_FAIL=1")
+	}
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	res := Ps1Result{LocalAppData: local}
@@ -62,6 +82,9 @@ func runPs1(t *testing.T, r Ps1Run) Ps1Result {
 		res.Exit = ee.ExitCode()
 	}
 	res.Stdout, res.Stderr = stdout.String(), stderr.String()
+	if data, err := os.ReadFile(progress); err == nil {
+		res.Progress = strings.TrimSpace(string(data))
+	}
 	if data, err := os.ReadFile(log); err == nil {
 		for _, l := range strings.Split(string(data), "\n") {
 			if l = strings.TrimSpace(l); l != "" {
@@ -192,3 +215,83 @@ func TestPs1DepsNoneMissing(t *testing.T) {
 }
 
 // END: dependency report
+
+// START: architecture
+
+func TestPs1Wow64Installs(t *testing.T) {
+	res := runPs1(t, Ps1Run{Arch: "x86", Arch6432: "AMD64", Have: "mpv,yt-dlp"})
+	if res.Exit != 0 || len(res.URLs) != 1 || !strings.HasSuffix(res.URLs[0], "/goremi_windows_amd64.exe") {
+		t.Fatalf("exit = %d, URLs = %q, stderr = %q; want exit 0 and one goremi_windows_amd64.exe download", res.Exit, res.URLs, res.Stderr)
+	}
+}
+
+func TestPs1Real32bitRefused(t *testing.T) {
+	res := runPs1(t, Ps1Run{Arch: "x86"})
+	if res.Exit != 1 || !strings.Contains(res.Stderr+res.Stdout, "x86") || len(res.URLs) != 0 {
+		t.Fatalf("exit = %d, URLs = %q, output = %q %q; want exit 1 naming x86 and no download", res.Exit, res.URLs, res.Stdout, res.Stderr)
+	}
+}
+
+// END: architecture
+
+// START: download behaviour
+
+func TestPs1ProgressSilent(t *testing.T) {
+	res := runPs1(t, Ps1Run{Arch: "AMD64", Have: "mpv,yt-dlp"})
+	if res.Progress != "SilentlyContinue" {
+		t.Fatalf("ProgressPreference during the download = %q, want SilentlyContinue", res.Progress)
+	}
+}
+
+func TestPs1FailedDownloadKeepsOld(t *testing.T) {
+	res := runPs1(t, Ps1Run{Arch: "AMD64", Fail: true, Existing: "old exe"})
+	if res.Exit != 1 || strings.TrimSpace(res.Stderr) == "" {
+		t.Fatalf("exit = %d, stderr = %q; want exit 1 and a message", res.Exit, res.Stderr)
+	}
+	dir := filepath.Join(res.LocalAppData, "Programs", "goremi")
+	got, err := os.ReadFile(filepath.Join(dir, "goremi.exe"))
+	if err != nil || string(got) != "old exe" {
+		t.Fatalf("goremi.exe = %q, %v; want the old content", got, err)
+	}
+	if entries, _ := os.ReadDir(dir); len(entries) != 1 {
+		t.Fatalf("install directory holds %d entries, want only goremi.exe", len(entries))
+	}
+}
+
+// END: download behaviour
+
+// START: hints
+
+func TestPs1PathHintWhenMissing(t *testing.T) {
+	out := ps1Reported(t, "mpv,yt-dlp")
+	if !strings.Contains(out, filepath.Join("Programs", "goremi")) || !strings.Contains(out, "PATH") {
+		t.Fatalf("stdout = %q, want a line naming the install directory and PATH", out)
+	}
+}
+
+func TestPs1NoPathHintWhenPresent(t *testing.T) {
+	res := runPs1(t, Ps1Run{Arch: "AMD64", Have: "mpv,yt-dlp", PathHas: true})
+	if res.Exit != 0 || strings.Contains(res.Stdout, "PATH") {
+		t.Fatalf("exit = %d, stdout = %q; want no PATH line", res.Exit, res.Stdout)
+	}
+}
+
+func TestPs1MpvInstallHints(t *testing.T) {
+	out := ps1Reported(t, "yt-dlp")
+	for _, want := range []string{"winget install --id shinchiro.mpv", "scoop bucket add extras", "scoop install mpv"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("stdout = %q, want %q", out, want)
+		}
+	}
+}
+
+func TestPs1YtdlpInstallHints(t *testing.T) {
+	out := ps1Reported(t, "mpv")
+	for _, want := range []string{"winget install --id yt-dlp.yt-dlp", "scoop install yt-dlp"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("stdout = %q, want %q", out, want)
+		}
+	}
+}
+
+// END: hints
