@@ -319,6 +319,12 @@ func (p *Player) Seek(seconds float64) error {
 	return err
 }
 
+// SeekTo moves playback to the given position from the start of the file.
+func (p *Player) SeekTo(position time.Duration) error {
+	_, err := p.command("seek", position.Seconds(), "absolute")
+	return err
+}
+
 // Position is how far playback has come; 0 when nothing plays.
 func (p *Player) Position() time.Duration { return p.seconds("time-pos") }
 

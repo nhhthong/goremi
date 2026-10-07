@@ -39,7 +39,7 @@ func playOne(m Model, track provider.Track) (Model, tea.Cmd) {
 }
 
 // noticeLine is the view line under Search:.
-func noticeLine(m Model) string { return lineAfterSearch(strings.Split(m.View().Content, "\n")) }
+func noticeLine(m Model) string { return lineAboveSearch(strings.Split(m.View().Content, "\n")) }
 
 // START: TestResolveErrorDoesNotPlay
 

@@ -39,12 +39,17 @@ func specApp(pl Player, spectrum bool) Model {
 	return search(sized(New(p).WithPlayer(pl).WithSpectrum(spectrum), 60), "daft")
 }
 
-// panelLines are the lines of the view after the Search: line, ANSI stripped.
+// panelLines are the lines of the view between the header (banner, mascot, badge) and the search bar, ANSI stripped.
 func panelLines(m Model) []string {
 	lines := plainLines(m)
+	g := lineWith(lines, "Goremi v") // the badge title: row 2 of the 7 mascot rows, or the first of the 3 badge rows under the mascot
+	head := g + 3
+	if strings.TrimSpace(lines[g][:strings.Index(lines[g], "Goremi v")]) != "" { // the badge sits beside the mascot: its title is row 4 of 12
+		head = g + 8
+	}
 	for i, l := range lines {
-		if strings.HasPrefix(l, "Search:") {
-			return lines[i+1:]
+		if strings.HasPrefix(l, "❯") {
+			return lines[head : i-1]
 		}
 	}
 	return nil
@@ -58,4 +63,14 @@ func artistIndex(m Model) int {
 		}
 	}
 	return -1
+}
+
+// panelHead is the number of lines above the panel: the banner, the mascot and the badge.
+func panelHead(m Model) int {
+	lines := plainLines(m)
+	g := lineWith(lines, "Goremi v")
+	if strings.TrimSpace(lines[g][:strings.Index(lines[g], "Goremi v")]) != "" {
+		return g + 8
+	}
+	return g + 3
 }

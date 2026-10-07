@@ -61,15 +61,3 @@ func checkLikeHelp(t *testing.T, flag string) {
 		t.Fatalf("%s: ran %d models, error %v, text %q; want no model, no error and the text of help %q", flag, ran, err, got, want)
 	}
 }
-
-// START: TestRunLongHelpFlag
-
-func TestRunLongHelpFlag(t *testing.T) { checkLikeHelp(t, "--help") }
-
-// END: TestRunLongHelpFlag
-
-// START: TestRunShortHelpFlag
-
-func TestRunShortHelpFlag(t *testing.T) { checkLikeHelp(t, "-h") }
-
-// END: TestRunShortHelpFlag

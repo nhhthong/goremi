@@ -123,10 +123,10 @@ func TestFrameBarsStayEmptyWithoutFilter(t *testing.T) {
 func TestPausedBarsAreIdle(t *testing.T) {
 	m := playingSpectrum(newBandsPlayer(0))
 	m.paused = true
-	m.intn = func(n int) int { return n - 1 }
+	m.intn = func(int) int { return 0 } // every idle bar flips on: one cell, level 8
 	m, _ = frame(m)
-	if m.bars != every(3) {
-		t.Fatalf("bars while paused = %v, want the idle height 3 (not the bands, which are at 64)", m.bars)
+	if m.bars != every(8) {
+		t.Fatalf("bars while paused = %v, want the idle height 8 (not the bands, which are at 64)", m.bars)
 	}
 }
 
@@ -136,11 +136,11 @@ func TestPausedBarsAreIdle(t *testing.T) {
 
 func TestEndedBarsAreIdle(t *testing.T) {
 	m := playingSpectrum(newBandsPlayer(0))
-	m.intn = func(n int) int { return n - 1 }
+	m.intn = func(int) int { return 0 }                  // every idle bar flips on: one cell, level 8
 	next, _ := m.Update(playerEventMsg{e: player.Ended}) // the only track of the list ended: no next
 	m, _ = frame(next.(Model))
-	if m.bars != every(3) {
-		t.Fatalf("bars after the last track ended = %v, want the idle height 3", m.bars)
+	if m.bars != every(8) {
+		t.Fatalf("bars after the last track ended = %v, want the idle height 8", m.bars)
 	}
 }
 

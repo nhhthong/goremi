@@ -4,7 +4,6 @@ package app
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"unicode/utf8"
 )
@@ -13,8 +12,8 @@ import (
 
 func TestSpectrumAboveArtistAfterPlay(t *testing.T) {
 	m, _ := playAndSettle(specApp(&recordingPlayer{}, true), specTrack)
-	if got := artistIndex(m); got != 8 {
-		t.Fatalf("the artist line is the panel line %d, want 8 (below the 8 rows of the spectrum): %q", got, panelLines(m))
+	if got := artistIndex(m); got != 9 {
+		t.Fatalf("the artist line is the panel line %d, want 9 (below the 8 rows of the spectrum and the baseline): %q", got, panelLines(m))
 	}
 }
 
@@ -33,25 +32,14 @@ func TestSpectrumRowsAre40Wide(t *testing.T) {
 
 // END: TestSpectrumRowsAre40Wide
 
-// START: TestLogoBeforeFirstPlayWithSpectrum
-
-func TestLogoBeforeFirstPlayWithSpectrum(t *testing.T) {
-	m := specApp(&recordingPlayer{}, true)
-	if first := panelLines(m)[0]; !strings.Contains(first, art0()) {
-		t.Fatalf("first panel line = %q, want the first line of the logo", first)
-	}
-}
-
-// END: TestLogoBeforeFirstPlayWithSpectrum
-
 // START: TestSpectrumRowsDrawTheBars
 
 func TestSpectrumRowsDrawTheBars(t *testing.T) {
 	m, _ := playAndSettle(specApp(&recordingPlayer{}, true), specTrack)
 	m.bars[0] = 64
 	top := []rune(panelLines(m)[0])
-	if len(top) < 5 || top[4] != '█' {
-		t.Fatalf("top spectrum row = %q, want █ in column 4 for a bar of 64", string(top))
+	if len(top) < 1 || top[0] != '▄' {
+		t.Fatalf("top spectrum row = %q, want ▄ in column 0 for a bar of 64", string(top))
 	}
 }
 

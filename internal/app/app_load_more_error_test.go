@@ -46,7 +46,7 @@ func loadMore(m Model) Model {
 
 func TestLoadMoreFailureMessage(t *testing.T) {
 	m, _ := onLoadMore(step{err: provider.ErrNetwork})
-	if got := lineAfterSearch(viewLines(loadMore(m))); got != networkText {
+	if got := lineAboveSearch(viewLines(loadMore(m))); got != networkText {
 		t.Fatalf("line under Search: = %q, want %q", got, networkText)
 	}
 }

@@ -155,17 +155,10 @@ func TestViewFollowsSelection(t *testing.T) {
 // faint is the start of the style code of a faint line; the colour joins it, as in "\x1b[2;38;2;…m".
 const faint = "\x1b[2;"
 
-func TestHintIsFaint(t *testing.T) {
-	first := strings.Split(New(fakeProvider{}).View().Content, "\n")[0]
-	if !strings.Contains(first, "Ctrl+C: quit") || !strings.Contains(first, faint) {
-		t.Fatalf("first line %q: want the hint with the faint code", first)
-	}
-}
-
 func TestSearchLineNotFaint(t *testing.T) {
-	second := strings.Split(New(fakeProvider{}).View().Content, "\n")[1]
-	if strings.Contains(second, faint) {
-		t.Fatalf("second line %q must not be faint", second)
+	first := strings.Split(New(fakeProvider{}).View().Content, "\n")[0]
+	if strings.Contains(first, faint) {
+		t.Fatalf("first line %q must not be faint", first)
 	}
 }
 

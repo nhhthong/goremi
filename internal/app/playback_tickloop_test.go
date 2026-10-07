@@ -24,10 +24,20 @@ func checkTick(t *testing.T, cmd tea.Cmd) {
 	if cmd == nil {
 		t.Fatal("no tick command")
 	}
-	msg, d := timed(cmd)
-	if _, ok := msg.(tickMsg); !ok || d < 900*time.Millisecond || d > 1500*time.Millisecond {
-		t.Fatalf("command gave %v after %v, want a tickMsg after about 1 s", msg, d)
+	msg, d := timed(cmd) // a tea.Tick command works once: its timer is made when the command is
+	if _, ok := msg.(tickMsg); ok && d >= 900*time.Millisecond && d <= 1500*time.Millisecond {
+		return
 	}
+	if batch, ok := msg.(tea.BatchMsg); ok { // the note tick of the mascot comes in the same batch
+		for _, c := range batch {
+			if m, d := timed(c); true {
+				if _, ok := m.(tickMsg); ok && d >= 900*time.Millisecond && d <= 1500*time.Millisecond {
+					return
+				}
+			}
+		}
+	}
+	t.Fatal("no command gives a tickMsg after about 1 s")
 }
 
 // playedOnce plays one track and returns the model and the command its details give.

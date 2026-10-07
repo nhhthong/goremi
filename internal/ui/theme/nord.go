@@ -7,6 +7,7 @@ package theme
 func Nord() Theme {
 	return Theme{
 		Accent:   "#88c0d0",
+		Error:    "#bf616a",
 		Selected: "#434c5e",
 		Muted:    "#4c566a",
 		Border:   "#4c566a",

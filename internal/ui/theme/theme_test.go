@@ -24,7 +24,7 @@ func checkPalette(t *testing.T, got Theme, want map[string]string) {
 // START: TestThemeFields
 
 func TestThemeFields(t *testing.T) {
-	want := []string{"Background", "Foreground", "Muted", "Border", "Accent", "Selected", "Progress", "Spectrum", "LogoFrom", "LogoTo"}
+	want := []string{"Background", "Foreground", "Muted", "Border", "Accent", "Error", "Selected", "Progress", "Spectrum", "LogoFrom", "LogoTo"}
 	typ := reflect.TypeOf(Theme{})
 	if typ.NumField() != len(want) {
 		t.Fatalf("Theme has %d fields, want %d", typ.NumField(), len(want))

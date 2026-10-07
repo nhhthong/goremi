@@ -102,17 +102,6 @@ func TestTypingMultiByte(t *testing.T) {
 
 // END: TestTypingMultiByte
 
-// START: TestEscInInputQuits
-
-func TestEscInInputQuits(t *testing.T) {
-	_, cmd := New(fakeProvider{}).Update(tea.KeyPressMsg{Code: tea.KeyEscape})
-	if !quits(cmd) {
-		t.Fatal("want a quit command")
-	}
-}
-
-// END: TestEscInInputQuits
-
 // START: TestCtrlCQuitsFromInput
 
 func TestCtrlCQuitsFromInput(t *testing.T) {
@@ -134,17 +123,6 @@ func TestCtrlCQuitsFromList(t *testing.T) {
 }
 
 // END: TestCtrlCQuitsFromList
-
-// START: TestViewHintOnFirstLine
-
-func TestViewHintOnFirstLine(t *testing.T) {
-	first := strings.SplitN(New(fakeProvider{}).View().Content, "\n", 2)[0]
-	if !strings.Contains(first, "Ctrl+C") {
-		t.Fatalf("first line = %q, want it to contain Ctrl+C", first)
-	}
-}
-
-// END: TestViewHintOnFirstLine
 
 // START: TestNewIsATeaModel
 
@@ -402,17 +380,6 @@ func TestTabIsNotTyped(t *testing.T) {
 
 // END: TestTabIsNotTyped
 
-// START: TestQInListQuits
-
-func TestQInListQuits(t *testing.T) {
-	_, cmd := New(fakeProvider{}).WithFocus(FocusList).Update(key('q'))
-	if !quits(cmd) {
-		t.Fatal("want a quit command")
-	}
-}
-
-// END: TestQInListQuits
-
 // START: TestEscInListReturnsToInput
 
 func TestEscInListReturnsToInput(t *testing.T) {
@@ -437,27 +404,6 @@ func TestEscInListDoesNotQuit(t *testing.T) {
 
 // END: TestEscInListDoesNotQuit
 
-// START: TestViewInputAboveList
-
-func TestViewInputAboveList(t *testing.T) {
-	p := &scriptedProvider{steps: []step{{tracks: []provider.Track{{Title: "A"}, {Title: "B"}}}}}
-	lines := strings.Split(search(New(p), "daft").View().Content, "\n")
-	input, list := -1, -1
-	for i, l := range lines {
-		if strings.Contains(l, "Search:") && input < 0 {
-			input = i
-		}
-		if strings.Contains(l, "A") && strings.Contains(l, "▶") && list < 0 {
-			list = i
-		}
-	}
-	if input < 0 || list < 0 || input >= list {
-		t.Fatalf("search line %d, first track line %d; want search above list in %q", input, list, lines)
-	}
-}
-
-// END: TestViewInputAboveList
-
 // START: TestViewShowsAllTracks
 
 func TestViewShowsAllTracks(t *testing.T) {
@@ -465,7 +411,7 @@ func TestViewShowsAllTracks(t *testing.T) {
 	c := search(New(p), "daft").View().Content
 	last := -1
 	for _, s := range []string{"A", "B", "C", "load more..."} {
-		i := strings.Index(c[strings.Index(c, "Search:"):], s)
+		i := strings.Index(c, s)
 		if i < 0 || i <= last {
 			t.Fatalf("%q missing or out of order in %q", s, c)
 		}

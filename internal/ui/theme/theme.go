@@ -11,6 +11,7 @@ type Theme struct {
 	Muted      string
 	Border     string
 	Accent     string
+	Error      string
 	Selected   string
 	Progress   string
 	Spectrum   string

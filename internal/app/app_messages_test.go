@@ -35,14 +35,14 @@ func failedWith(err error) Model {
 const emptyText = "Type something to search."
 
 func TestEmptyQueryMessage(t *testing.T) {
-	if got := lineAfterSearch(viewLines(emptyEnter(New(fakeProvider{})))); got != emptyText {
+	if got := lineAboveSearch(viewLines(emptyEnter(New(fakeProvider{})))); got != emptyText {
 		t.Fatalf("line under Search: = %q, want %q", got, emptyText)
 	}
 }
 
 func TestSpacesQueryMessage(t *testing.T) {
 	m, _ := typed(New(fakeProvider{}), "   ")
-	if got := lineAfterSearch(viewLines(emptyEnter(m))); got != emptyText {
+	if got := lineAboveSearch(viewLines(emptyEnter(m))); got != emptyText {
 		t.Fatalf("line under Search: = %q, want %q", got, emptyText)
 	}
 }
@@ -66,7 +66,7 @@ const missingText = "yt-dlp not found. Install yt-dlp and try again."
 
 func TestYtDlpMissingMessage(t *testing.T) {
 	m := failedWith(&exec.Error{Name: "yt-dlp", Err: exec.ErrNotFound})
-	if got := lineAfterSearch(viewLines(m)); got != missingText {
+	if got := lineAboveSearch(viewLines(m)); got != missingText {
 		t.Fatalf("line under Search: = %q, want %q", got, missingText)
 	}
 }
@@ -74,7 +74,7 @@ func TestYtDlpMissingMessage(t *testing.T) {
 func TestYtDlpMissingEndToEnd(t *testing.T) {
 	t.Setenv("PATH", "")
 	m := search(New(&provider.YouTubeProvider{}), "daft")
-	if got := lineAfterSearch(viewLines(m)); got != missingText {
+	if got := lineAboveSearch(viewLines(m)); got != missingText {
 		t.Fatalf("line under Search: = %q, want %q", got, missingText)
 	}
 }
@@ -85,7 +85,7 @@ func TestYtDlpMissingEndToEnd(t *testing.T) {
 
 func TestTimeoutMessage(t *testing.T) {
 	want := "Search timed out. Press Enter to retry."
-	if got := lineAfterSearch(viewLines(failedWith(provider.ErrTimeout))); got != want {
+	if got := lineAboveSearch(viewLines(failedWith(provider.ErrTimeout))); got != want {
 		t.Fatalf("line under Search: = %q, want %q", got, want)
 	}
 }
@@ -124,14 +124,14 @@ func (f *failingOnce) Search(q string, page int) ([]provider.Track, error) {
 
 func TestNoResultsMessage(t *testing.T) {
 	want := `No results for "daft".`
-	if got := lineAfterSearch(viewLines(search(New(fakeProvider{}), "daft"))); got != want {
+	if got := lineAboveSearch(viewLines(search(New(fakeProvider{}), "daft"))); got != want {
 		t.Fatalf("line under Search: = %q, want %q", got, want)
 	}
 }
 
 func TestNoResultsUsesTrimmedQuery(t *testing.T) {
 	want := `No results for "daft".`
-	if got := lineAfterSearch(viewLines(search(New(fakeProvider{}), "  daft  "))); got != want {
+	if got := lineAboveSearch(viewLines(search(New(fakeProvider{}), "  daft  "))); got != want {
 		t.Fatalf("line under Search: = %q, want %q", got, want)
 	}
 }

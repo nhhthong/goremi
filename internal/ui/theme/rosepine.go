@@ -7,6 +7,7 @@ package theme
 func RosePine() Theme {
 	return Theme{
 		Accent:   "#c4a7e7",
+		Error:    "#eb6f92",
 		Selected: "#403d52",
 		Muted:    "#6e6a86",
 		Border:   "#6e6a86",

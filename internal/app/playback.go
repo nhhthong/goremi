@@ -119,6 +119,34 @@ func (m Model) startPlay(track provider.Track) (Model, tea.Cmd) {
 	return m, play
 }
 
+// noteTickMsg asks the app to move the music notes of the mascot one step.
+type noteTickMsg struct{}
+
+// noteEvery is the interval between two steps of the notes.
+const noteEvery = 250 * time.Millisecond
+
+// noteCmd waits one interval and then gives a noteTickMsg.
+func noteCmd() tea.Cmd {
+	return tea.Tick(noteEvery, func(time.Time) tea.Msg { return noteTickMsg{} })
+}
+
+// notesRun tells whether the notes should move: a track has played, it is not paused and the last track has not ended.
+func (m Model) notesRun() bool { return m.artist != "" && !m.paused && !m.ended }
+
+// onNoteTick steps the notes and asks for the next tick while they should move; otherwise the notes go and the loop ends (the next progress reading starts it again when the play runs).
+func (m Model) onNoteTick() (Model, tea.Cmd) {
+	if !m.notesRun() {
+		m.notes, m.noting = nil, false
+		return m, nil
+	}
+	intn := m.intn
+	if intn == nil {
+		intn = rand.Intn
+	}
+	m.notes = ui.StepNotes(m.notes, intn)
+	return m, noteCmd()
+}
+
 // frameMsg asks the app to read the band levels, smooth the bars and draw a frame of the spectrum.
 type frameMsg struct{}
 
@@ -136,7 +164,7 @@ type spectrumSource interface {
 	Spectrum() bool
 }
 
-// onFrame moves the bars one frame: towards the band levels while audio plays, towards random idle heights when paused or after the last track ended, towards nothing when mpv runs without the spectrum.
+// onFrame moves the bars one frame: towards the band levels while audio plays, towards the idle levels (0 or one cell, flipping at random) when paused or after the last track ended, towards nothing when mpv runs without the spectrum.
 // The frame tick goes on while a track is on; with none (a failed play) it ends.
 func (m Model) onFrame() (Model, tea.Cmd) {
 	if m.artist == "" {
@@ -151,7 +179,8 @@ func (m Model) onFrame() (Model, tea.Cmd) {
 		if intn == nil {
 			intn = rand.Intn
 		}
-		target = ui.IdleHeights(intn)
+		m.idle = ui.NextIdle(m.idle, intn)
+		target = m.idle
 	case ok && src.Spectrum():
 		for i, db := range src.Bands() {
 			target[i] = ui.SpectrumHeight(db)
@@ -213,6 +242,10 @@ func (m Model) showDetails(d detailsMsg) (Model, tea.Cmd) {
 	if !m.ticking {
 		m.ticking = true
 		cmds = append(cmds, tickCmd())
+	}
+	if !m.noting && m.notesRun() { // the notes of the mascot start with the first details of a play
+		m.noting = true
+		cmds = append(cmds, noteCmd())
 	}
 	if m.spectrum && !m.framing { // the frame tick of the spectrum starts with the first details of a play
 		m.framing = true
@@ -320,6 +353,14 @@ func (m *mpvPlayer) started() *player.Player {
 func (m *mpvPlayer) TogglePause() error {
 	if p := m.started(); p != nil {
 		return p.TogglePause()
+	}
+	return nil
+}
+
+// SeekTo does nothing before the first Play.
+func (m *mpvPlayer) SeekTo(position time.Duration) error {
+	if p := m.started(); p != nil {
+		return p.SeekTo(position)
 	}
 	return nil
 }
@@ -474,6 +515,10 @@ func (m Model) onProgress(p progressMsg) (Model, tea.Cmd) {
 		m.ticking = false
 		return m, nil
 	}
+	if !m.noting && m.notesRun() { // the play runs again after a pause: the notes start again
+		m.noting = true
+		return m, tea.Batch(tickCmd(), noteCmd())
+	}
 	return m, tickCmd()
 }
 
@@ -513,6 +558,10 @@ func (m Model) click(c tea.Mouse) (Model, tea.Cmd) {
 	if c.Button != tea.MouseLeft {
 		return m, nil
 	}
+	if cell, ok := m.barCell(c.X, c.Y); ok && m.mouse { // a press on the bar starts a drag; the seek comes on release
+		m.dragging, m.dragCell = true, cell
+		return m, nil
+	}
 	switch m.controlAt(c.X, c.Y) {
 	case 0:
 		return m, m.stepTrack(-1)
@@ -529,3 +578,88 @@ func (m Model) click(c tea.Mouse) (Model, tea.Cmd) {
 }
 
 // END: click
+
+// START: seekbar
+
+// absoluteSeeker is a Player that can also seek to a position from the start; the mpv player does.
+type absoluteSeeker interface {
+	SeekTo(position time.Duration) error
+}
+
+// seekBarCells is the number of cells of the progress bar: the panel width minus 2.
+const seekBarCells = ui.PanelWidth - 2
+
+// shown is what the bar and the clock show: the dragged position while a drag runs, else what the player reported. The length is the player's, or the track's own while the player has not reported one.
+func (m Model) shown() (elapsed, total time.Duration) {
+	total = m.playing.Duration
+	if m.total > 0 {
+		total = m.total
+	}
+	if m.dragging {
+		return dragPosition(total, m.dragCell), total
+	}
+	return m.elapsed, total
+}
+
+// dragPosition is the position of cell i of the bar: total × i / (cells − 1), rounded down to the second.
+func dragPosition(total time.Duration, cell int) time.Duration {
+	return time.Duration(int(total/time.Second)*cell/(seekBarCells-1)) * time.Second
+}
+
+// barOrigin finds the bar in the drawn view and returns the column of its first cell and its row; ok is false with no length to seek in, or when the bar is not drawn.
+func (m Model) barOrigin() (x, y int, ok bool) {
+	elapsed, total := m.shown()
+	if m.artist == "" || total <= 0 {
+		return 0, 0, false
+	}
+	bar := ansi.Strip(ui.BarLine(m.theme, ui.PanelWidth, elapsed, total))
+	for row, line := range strings.Split(ansi.Strip(m.View().Content), "\n") {
+		if i := strings.Index(line, bar); i >= 0 {
+			return utf8.RuneCountInString(line[:i]), row, true
+		}
+	}
+	return 0, 0, false
+}
+
+// barCell is the cell of the bar under the given point, ok only inside the bar.
+func (m Model) barCell(px, py int) (cell int, ok bool) {
+	x, y, found := m.barOrigin()
+	if !found || py != y || px < x || px >= x+seekBarCells {
+		return 0, false
+	}
+	return px - x, true
+}
+
+// dragTo moves the dragged position to the cell under column px, clamped to the two ends of the bar.
+func (m Model) dragTo(px int) Model {
+	if x, _, ok := m.barOrigin(); ok {
+		m.dragCell = min(max(px-x, 0), seekBarCells-1)
+	}
+	return m
+}
+
+// onMouseMove follows a drag.
+func (m Model) onMouseMove(c tea.Mouse) Model {
+	if m.dragging {
+		return m.dragTo(c.X)
+	}
+	return m
+}
+
+// onMouseRelease ends a drag and seeks once to where it ended.
+func (m Model) onMouseRelease(c tea.Mouse) Model {
+	if !m.dragging || c.Button != tea.MouseLeft {
+		return m
+	}
+	m = m.dragTo(c.X)
+	_, total := m.shown()
+	pos := dragPosition(total, m.dragCell)
+	m.dragging = false
+	m.elapsed = pos
+	if sk, ok := m.player.(absoluteSeeker); ok {
+		_ = sk.SeekTo(pos)
+	}
+	return m
+}
+
+// END: seekbar

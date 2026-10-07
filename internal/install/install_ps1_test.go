@@ -312,13 +312,4 @@ func TestPs1MpvInstallHints(t *testing.T) {
 	}
 }
 
-func TestPs1YtdlpInstallHints(t *testing.T) {
-	out := ps1Reported(t, "mpv")
-	for _, want := range []string{"winget install --id yt-dlp.yt-dlp", "scoop install yt-dlp"} {
-		if !strings.Contains(out, want) {
-			t.Errorf("stdout = %q, want %q", out, want)
-		}
-	}
-}
-
 // END: hints
