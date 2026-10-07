@@ -7,6 +7,7 @@ package theme
 func Default() Theme {
 	return Theme{
 		Accent:   "#2dd4bf",
+		Error:    "#ff5555",
 		Selected: "#134e4a",
 		Muted:    "#8a8a8a",
 		Border:   "#6b7280",

@@ -32,6 +32,9 @@ func playAndSettle(m Model, track provider.Track) (Model, []tea.Msg) {
 			if _, ok := msg.(tickMsg); ok {
 				continue
 			}
+			if _, ok := msg.(noteTickMsg); ok { // the note loop never ends by itself
+				continue
+			}
 			n, c := m.Update(msg)
 			m = n.(Model)
 			if c != nil {
@@ -44,19 +47,6 @@ func playAndSettle(m Model, track provider.Track) (Model, []tea.Msg) {
 }
 
 // END: panelAfterPlayHelpers
-
-// START: TestLogoShowsBeforeFirstPlay
-
-func TestLogoShowsBeforeFirstPlay(t *testing.T) {
-	for _, l := range plainLines(afterPlayApp()) {
-		if strings.Contains(l, art0()) {
-			return
-		}
-	}
-	t.Fatal("the logo is not on screen before the first play")
-}
-
-// END: TestLogoShowsBeforeFirstPlay
 
 // START: TestNoLogoNoImageAfterPlay
 

@@ -3,6 +3,7 @@ package ui
 
 import (
 	"math"
+	"strings"
 
 	"charm.land/lipgloss/v2"
 
@@ -38,27 +39,31 @@ func SmoothHeight(prev, target int) int {
 
 // START: SpectrumRows
 
-// SpectrumBars is the number of bars; SpectrumRowCount their rows and SpectrumOffset the blank cells on each side in the 40 columns of the panel.
+// SpectrumBars is the number of bands the model keeps and SpectrumRowCount the rows of the drawing; SpectrumShown is the number of bars drawn, each one column wide with one blank column after it.
 const (
 	SpectrumBars     = 32
 	SpectrumRowCount = 8
-	SpectrumOffset   = 4
+	SpectrumShown    = 20
 )
 
-// SpectrumRows draws the bars as 8 lines of PanelWidth columns: each bar is one cell wide, centred; a row holds 8 height levels, a full cell is █ and the top cell of a bar is one of ▁▂▃▄▅▆▇█ by what is left over.
+// SpectrumCells is the number of cells a bar of level 0 to 64 lights: one per 8 levels, rounded to the nearest, so a level of 4 lights one cell and a level of 3 none.
+func SpectrumCells(level int) int { return min(max((level+4)/8, 0), SpectrumRowCount) }
+
+// SpectrumRows draws the bars as 8 lines of PanelWidth columns: 20 bars, one column wide at the even columns, each a stack of half blocks ▄ that grows from the bottom by SpectrumCells of its level; bar j takes the highest of the bands from j×32/20 up to (j+1)×32/20.
 func SpectrumRows(heights [SpectrumBars]int) []string {
-	const blocks = "▁▂▃▄▅▆▇█"
-	glyphs := []rune(blocks)
 	rows := make([]string, SpectrumRowCount)
 	for r := range rows {
 		line := make([]rune, PanelWidth)
 		for i := range line {
 			line[i] = ' '
 		}
-		for b, h := range heights {
-			n := min(max(h-(SpectrumRowCount-1-r)*8, 0), 8)
-			if n > 0 {
-				line[SpectrumOffset+b] = glyphs[n-1]
+		for j := 0; j < SpectrumShown; j++ {
+			level := 0
+			for b := j * SpectrumBars / SpectrumShown; b < (j+1)*SpectrumBars/SpectrumShown; b++ {
+				level = max(level, heights[b])
+			}
+			if SpectrumCells(level) > SpectrumRowCount-1-r {
+				line[2*j] = '▄'
 			}
 		}
 		rows[r] = string(line)
@@ -66,20 +71,27 @@ func SpectrumRows(heights [SpectrumBars]int) []string {
 	return rows
 }
 
+// SpectrumBaseline is the row of ─ under the bars, PanelWidth columns wide.
+func SpectrumBaseline() string { return strings.Repeat("─", PanelWidth) }
+
 // END: SpectrumRows
 
-// START: IdleHeights
+// START: NextIdle
 
-// IdleHeights are the bar heights while no audio plays: each bar gets a random level of 0 to 5 % of the 64 levels, that is 0 to 3; intn(n) gives a number from 0 to n-1.
-func IdleHeights(intn func(n int) int) [SpectrumBars]int {
-	var h [SpectrumBars]int
-	for i := range h {
-		h[i] = intn(4)
+// idleFlip is the chance, 1 in idleFlip per frame, that an idle bar changes between no cell and one cell.
+const idleFlip = 10
+
+// NextIdle gives the idle levels of the next frame while no audio plays: each bar is 0 or one cell (level 8) and flips with a chance of 1 in 10 per frame, so the bars move gently; intn(n) gives a number from 0 to n-1.
+func NextIdle(prev [SpectrumBars]int, intn func(n int) int) [SpectrumBars]int {
+	for i := range prev {
+		if intn(idleFlip) == 0 {
+			prev[i] = 8 - prev[i]
+		}
 	}
-	return h
+	return prev
 }
 
-// END: IdleHeights
+// END: NextIdle
 
 // START: PaintSpectrum
 

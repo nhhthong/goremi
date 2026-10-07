@@ -15,26 +15,6 @@ func failedSearchLine(t *testing.T, th theme.Theme) string {
 	return rowLine(t, search(New(p).WithTheme(th), "daft"), networkText)
 }
 
-// START: TestNoticePlainDefault
-
-func TestNoticePlainDefault(t *testing.T) {
-	if got := failedSearchLine(t, theme.Default()); got != networkText {
-		t.Fatalf("message line %q carries a colour code, want %q", got, networkText)
-	}
-}
-
-// END: TestNoticePlainDefault
-
-// START: TestNoticePlainDracula
-
-func TestNoticePlainDracula(t *testing.T) {
-	if got := failedSearchLine(t, theme.Dracula()); got != networkText {
-		t.Fatalf("message line %q carries a colour code, want %q", got, networkText)
-	}
-}
-
-// END: TestNoticePlainDracula
-
 // START: TestViewNoTerminalColoursDefault
 
 func TestViewNoTerminalColoursDefault(t *testing.T) {

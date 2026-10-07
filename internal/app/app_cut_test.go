@@ -11,7 +11,9 @@ import (
 // titled returns a model of the given width whose list holds one track with a title of n letters t.
 func titled(width, n int) Model {
 	p := &scriptedProvider{steps: []step{{tracks: []provider.Track{{Title: strings.Repeat("t", n)}}}}}
-	return search(sized(New(p), width), "daft")
+	m := search(sized(New(p), width), "daft")
+	next, _ := m.Update(PlayMsg{Track: m.Tracks()[0]}) // after the first play the panel sits beside the list
+	return next.(Model)
 }
 
 // listLine is the plain text of the first view line that holds the selected track.

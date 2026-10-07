@@ -12,6 +12,12 @@ type SearchInput struct {
 
 func (s SearchInput) Value() string { return s.value }
 
+// WithValue returns the input holding v.
+func (s SearchInput) WithValue(v string) SearchInput {
+	s.value = v
+	return s
+}
+
 // Update appends the printable text of a key press and removes the last character on Backspace;
 // keys with Ctrl or Alt are not text.
 func (s SearchInput) Update(k tea.KeyPressMsg) SearchInput {

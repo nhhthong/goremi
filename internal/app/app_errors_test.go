@@ -31,11 +31,11 @@ var ansiCode = regexp.MustCompile(`\x1b\[[0-9;]*m`)
 // plain removes the colour and style codes from a view line.
 func plain(s string) string { return ansiCode.ReplaceAllString(s, "") }
 
-// lineAfterSearch returns the view line right under the "Search:" line, or "" when there is none.
-func lineAfterSearch(lines []string) string {
+// lineAboveSearch returns the view line right above the "Search:" line (the message line), or "" when there is none.
+func lineAboveSearch(lines []string) string {
 	for i, l := range lines {
-		if strings.HasPrefix(plain(l), "Search:") && i+1 < len(lines) {
-			return plain(lines[i+1])
+		if strings.HasPrefix(plain(l), "❯") && i > 1 {
+			return plain(lines[i-2])
 		}
 	}
 	return ""
@@ -46,13 +46,13 @@ func lineAfterSearch(lines []string) string {
 // START: network error line
 
 func TestNetworkErrorOneLineBelowSearch(t *testing.T) {
-	if got := lineAfterSearch(afterSearch(step{err: provider.ErrNetwork})); got != networkText {
+	if got := lineAboveSearch(afterSearch(step{err: provider.ErrNetwork})); got != networkText {
 		t.Fatalf("line under Search: = %q, want %q", got, networkText)
 	}
 }
 
 func TestNoMessageBeforeSearch(t *testing.T) {
-	if got := lineAfterSearch(strings.Split(New(fakeProvider{}).View().Content, "\n")); got != "" {
+	if got := lineAboveSearch(strings.Split(New(fakeProvider{}).View().Content, "\n")); got != "" {
 		t.Fatalf("line under Search: = %q, want none", got)
 	}
 }
@@ -62,7 +62,7 @@ func TestMessageAboveKeptList(t *testing.T) {
 	var order []string
 	for _, l := range lines {
 		switch {
-		case strings.HasPrefix(plain(l), "Search:"):
+		case strings.HasPrefix(plain(l), "❯"):
 			order = append(order, "search")
 		case plain(l) == networkText:
 			order = append(order, "message")
@@ -70,7 +70,7 @@ func TestMessageAboveKeptList(t *testing.T) {
 			order = append(order, "list")
 		}
 	}
-	if want := []string{"search", "message", "list"}; !reflect.DeepEqual(order, want) {
+	if want := []string{"list", "message", "search"}; !reflect.DeepEqual(order, want) {
 		t.Fatalf("order = %v, want %v in %q", order, want, lines)
 	}
 }
@@ -88,7 +88,7 @@ func TestNetworkErrorRecovers(t *testing.T) {
 
 func TestOtherFailureMessage(t *testing.T) {
 	want := "Search failed. Press Enter to retry."
-	if got := lineAfterSearch(afterSearch(step{err: errors.New("boom")})); got != want {
+	if got := lineAboveSearch(afterSearch(step{err: errors.New("boom")})); got != want {
 		t.Fatalf("line under Search: = %q, want %q", got, want)
 	}
 }

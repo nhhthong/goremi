@@ -98,46 +98,18 @@ func SaveTheme(path, name string) error {
 func NewFromConfig(path string, p provider.Provider) Model {
 	c := LoadConfig(path)
 	t, _ := theme.ByName(c.Theme)
-	return New(p).WithTheme(t).WithMouse(c.Mouse).WithSpectrum(c.ShowSpectrum)
+	return New(p).WithTheme(t).WithMouse(c.Mouse).WithSpectrum(c.ShowSpectrum).WithConfigPath(path)
 }
 
 // END: NewFromConfig
 
 // START: Run
 
-// helpText is what `goremi help` prints.
-const helpText = `goremi - terminal music player
-
-Usage:
-  goremi          open the player
-  goremi theme    choose a theme
-  goremi help     show this help
-
-With the mouse on ([ui] mouse = true), selecting text needs Shift (Option on macOS).
-`
-
-// Run is the goremi command. With the argument "theme" it first shows the theme picker and, once a theme is saved, opens the app with it;
-// a cancelled picker ends the command. An argument it does not know opens nothing and returns an error that hints at `goremi help`. `goremi help`, `goremi --help` and `goremi -h` write the usage text to out and opens nothing. Without arguments the app opens with the theme from the config at path.
-// out receives the help text; run runs one model to its end and returns the final model.
+// Run is the goremi command. Any argument opens nothing and returns a usage error `Unknown command "<x>".` (exit code 2): `goremi theme` and `goremi help` are gone, the theme is chosen with /theme inside the app.
+// Without arguments the app opens with the theme from the config at path. out is not written to any more; it stays so main and the tests keep one signature. run runs one model to its end and returns the final model.
 func Run(args []string, path string, p provider.Provider, out io.Writer, run func(tea.Model) (tea.Model, error)) error {
-	if len(args) > 0 && (args[0] == "help" || args[0] == "--help" || args[0] == "-h") {
-		_, err := io.WriteString(out, helpText)
-		return err
-	}
-	if len(args) > 0 && args[0] != "theme" {
-		return usageError{fmt.Sprintf("Unknown command %q. Check the spelling, or run \"goremi help\".", args[0])}
-	}
-	if len(args) > 0 && args[0] == "theme" {
-		final, err := run(NewThemeModel(path))
-		if err != nil {
-			return err
-		}
-		if saveErr := final.(ThemeModel).err; saveErr != nil {
-			return fmt.Errorf("Cannot save the theme: %w", saveErr)
-		}
-		if final.(ThemeModel).Chosen() == "" {
-			return nil
-		}
+	if len(args) > 0 {
+		return usageError{fmt.Sprintf("Unknown command %q.", args[0])}
 	}
 	pl := newMpvPlayer()
 	pl.spectrum = LoadConfig(path).ShowSpectrum // mpv gets the band filter only when the spectrum shows

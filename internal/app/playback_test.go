@@ -27,6 +27,8 @@ type recordingPlayer struct {
 	urls    []string
 	toggles int
 	seeks   []float64
+	// seekTos are the positions SeekTo was asked for.
+	seekTos []time.Duration
 	events  chan player.Event
 	// playErrs are the errors Play returns, one per call in turn; nil or none means success.
 	playErrs []error
@@ -53,6 +55,11 @@ func (r *recordingPlayer) Paused() bool                { return r.pausedNow }
 
 func (r *recordingPlayer) TogglePause() error {
 	r.toggles++
+	return nil
+}
+
+func (r *recordingPlayer) SeekTo(position time.Duration) error {
+	r.seekTos = append(r.seekTos, position)
 	return nil
 }
 

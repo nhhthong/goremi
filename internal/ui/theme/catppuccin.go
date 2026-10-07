@@ -7,6 +7,7 @@ package theme
 func Catppuccin() Theme {
 	return Theme{
 		Accent:   "#cba6f7",
+		Error:    "#f38ba8",
 		Selected: "#313244",
 		Muted:    "#6c7086",
 		Border:   "#6c7086",

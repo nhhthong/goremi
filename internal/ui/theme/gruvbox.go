@@ -7,6 +7,7 @@ package theme
 func Gruvbox() Theme {
 	return Theme{
 		Accent:   "#fabd2f",
+		Error:    "#fb4934",
 		Selected: "#504945",
 		Muted:    "#928374",
 		Border:   "#928374",

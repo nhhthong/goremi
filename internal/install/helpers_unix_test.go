@@ -29,7 +29,7 @@ func repoRoot(t *testing.T) string {
 // START: sealedPath
 
 // systemTools are the real programs install.sh may use; everything else (mpv, yt-dlp, sudo) is absent from the sealed PATH.
-var systemTools = []string{"mkdir", "chmod", "mv", "rm", "mktemp", "cat", "cp", "dirname", "basename", "tr", "sed", "ls"}
+var systemTools = []string{"mkdir", "chmod", "mv", "rm", "mktemp", "cat", "cp", "dirname", "basename", "tr", "sed", "ls", "sha256sum", "cut", "grep"}
 
 const fakeUname = `#!/bin/sh
 case "$1" in
@@ -100,12 +100,16 @@ type Run struct {
 	Fail     bool // curl exits 22
 	Partial  bool // with Fail: curl writes half a file first
 	Body     string
-	Mpv      bool   // a fake mpv is on PATH
-	YtDlp    bool   // a fake yt-dlp is on PATH
-	Stdin    bool   // the script text goes to sh on stdin, as in curl | sh
-	Cut      int    // with Stdin: only the first Cut bytes of the script are sent (0 = all)
-	Sealed   string // a PATH directory from sealedPath to reuse (empty = make one)
-	PathHome bool   // ~/.local/bin of the home is on PATH
+	Mpv      bool              // a fake mpv is on PATH
+	YtDlp    bool              // a fake yt-dlp is on PATH
+	Stdin    bool              // the script text goes to sh on stdin, as in curl | sh
+	Cut      int               // with Stdin: only the first Cut bytes of the script are sent (0 = all)
+	Sealed   string            // a PATH directory from sealedPath to reuse (empty = make one)
+	PathHome bool              // ~/.local/bin of the home is on PATH
+	Args     []string          // arguments of the script, as after `sh -s --` in curl | sh -s -- -y
+	Answer   *string           // the text of the terminal file the script reads its answer from; nil means no terminal
+	Tools    map[string]string // extra or replacing fake tools for the sealed PATH, name to script text
+	Env      []string          // extra environment, NAME=value
 }
 
 // Result is what a run left behind.
@@ -114,6 +118,7 @@ type Result struct {
 	Exit                 int
 	CurlURLs             []string
 	SudoCalls            []string
+	PMCalls              []string // calls of the fake package managers and downloads, one line each
 }
 
 // runInstall runs install.sh in a sealed environment; the home is a new temp directory unless home is given.
@@ -139,7 +144,7 @@ func runInstall(t *testing.T, r Run, home string) Result {
 		t.Fatal(err)
 	}
 	script := filepath.Join(repoRoot(t), "install.sh")
-	cmd := exec.Command(sh, script)
+	cmd := exec.Command(sh, append([]string{script}, r.Args...)...)
 	if r.Stdin {
 		text, err := os.ReadFile(script)
 		if err != nil {
@@ -148,7 +153,7 @@ func runInstall(t *testing.T, r Run, home string) Result {
 		if r.Cut > 0 && r.Cut < len(text) {
 			text = text[:r.Cut]
 		}
-		cmd = exec.Command(sh)
+		cmd = exec.Command(sh, append([]string{"-s", "--"}, r.Args...)...)
 		cmd.Stdin = bytes.NewReader(text)
 	}
 	cmd.Dir = tmp
@@ -156,11 +161,25 @@ func runInstall(t *testing.T, r Run, home string) Result {
 	if sealed == "" {
 		sealed = sealedPath(t, r.Mpv, r.YtDlp)
 	}
+	for name, text := range r.Tools {
+		if err := os.WriteFile(filepath.Join(sealed, name), []byte(text), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ttyPath := filepath.Join(tmp, "no-terminal")
+	if r.Answer != nil {
+		ttyPath = filepath.Join(tmp, "terminal")
+		if err := os.WriteFile(ttyPath, []byte(*r.Answer), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	pmLog := filepath.Join(tmp, "pm.log")
 	path := sealed
 	if r.PathHome {
 		path += ":" + filepath.Join(home, ".local", "bin")
 	}
-	cmd.Env = []string{"HOME=" + home, "PATH=" + path, "FAKE_OS=" + r.OS, "FAKE_ARCH=" + r.Arch, "FAKE_BODY=" + body, "CURL_LOG=" + curlLog, "SUDO_LOG=" + sudoLog}
+	cmd.Env = []string{"HOME=" + home, "PATH=" + path, "FAKE_OS=" + r.OS, "FAKE_ARCH=" + r.Arch, "FAKE_BODY=" + body, "CURL_LOG=" + curlLog, "SUDO_LOG=" + sudoLog, "GOREMI_TTY=" + ttyPath, "PM_LOG=" + pmLog}
+	cmd.Env = append(cmd.Env, r.Env...)
 	if r.Fail {
 		cmd.Env = append(cmd.Env, "FAKE_CURL_FAIL=1")
 	}
@@ -179,6 +198,7 @@ func runInstall(t *testing.T, r Run, home string) Result {
 	}
 	res.Stdout, res.Stderr = stdout.String(), stderr.String()
 	res.CurlURLs, res.SudoCalls = lines(curlLog), lines(sudoLog)
+	res.PMCalls = logLines(pmLog)
 	return res
 }
 

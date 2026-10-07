@@ -52,26 +52,6 @@ func listWhilePlaying(width int) Model {
 
 const hintText = "j -10s  k pause  l +10s  p prev  n next"
 
-// START: TestHintLineLast
-
-func TestHintLineLast(t *testing.T) {
-	if got := lastLine(listWhilePlaying(100)); got != hintText {
-		t.Fatalf("last line = %q, want %q", got, hintText)
-	}
-}
-
-// END: TestHintLineLast
-
-// START: TestHintLineLastNarrow
-
-func TestHintLineLastNarrow(t *testing.T) {
-	if got := lastLine(listWhilePlaying(70)); got != hintText {
-		t.Fatalf("last line = %q, want %q", got, hintText)
-	}
-}
-
-// END: TestHintLineLastNarrow
-
 // START: TestHintAbsentInInput
 
 func TestHintAbsentInInput(t *testing.T) {

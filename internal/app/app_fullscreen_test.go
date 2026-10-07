@@ -2,7 +2,6 @@
 package app
 
 import (
-	"path/filepath"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -31,13 +30,3 @@ func TestViewAltScreenAfterSearch(t *testing.T) {
 }
 
 // END: TestViewAltScreenAfterSearch
-
-// START: TestThemeViewAltScreen
-
-func TestThemeViewAltScreen(t *testing.T) {
-	if !NewThemeModel(filepath.Join(t.TempDir(), "config.toml")).View().AltScreen {
-		t.Fatal("the theme picker view does not ask for the alternate screen")
-	}
-}
-
-// END: TestThemeViewAltScreen

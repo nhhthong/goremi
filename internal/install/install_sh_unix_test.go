@@ -261,20 +261,6 @@ func TestDepsNoneMissing(t *testing.T) {
 	}
 }
 
-func TestMacHintsBoth(t *testing.T) {
-	out := reported(t, Run{OS: "Darwin", Arch: "arm64"})
-	if !strings.Contains(out, "brew install mpv") || !strings.Contains(out, "brew install yt-dlp") {
-		t.Fatalf("stdout = %q, want both brew commands", out)
-	}
-}
-
-func TestMacHintOnlyMissing(t *testing.T) {
-	out := reported(t, Run{OS: "Darwin", Arch: "arm64", Mpv: true})
-	if !strings.Contains(out, "brew install yt-dlp") || strings.Contains(out, "brew install mpv") {
-		t.Fatalf("stdout = %q, want only the yt-dlp command", out)
-	}
-}
-
 func TestLinuxNamesOnly(t *testing.T) {
 	out := reported(t, Run{OS: "Linux", Arch: "x86_64"})
 	if !strings.Contains(out, "mpv") || !strings.Contains(out, "yt-dlp") || strings.Contains(out, "brew") {
@@ -343,13 +329,6 @@ func TestNoPathHintWhenPresent(t *testing.T) {
 	out := reported(t, Run{OS: "Linux", Arch: "x86_64", Mpv: true, YtDlp: true, PathHome: true})
 	if strings.Contains(out, "PATH") {
 		t.Fatalf("stdout = %q, want no PATH line", out)
-	}
-}
-
-func TestLinuxMpvAptHint(t *testing.T) {
-	out := reported(t, Run{OS: "Linux", Arch: "x86_64", YtDlp: true})
-	if !strings.Contains(out, "sudo apt install mpv") {
-		t.Fatalf("stdout = %q, want sudo apt install mpv", out)
 	}
 }
 

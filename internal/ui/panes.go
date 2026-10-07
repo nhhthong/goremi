@@ -1,11 +1,7 @@
 // Layout of the search view: track list on the left, player panel on the right.
 package ui
 
-import (
-	"charm.land/lipgloss/v2"
-
-	"goremi/internal/ui/theme"
-)
+import "charm.land/lipgloss/v2"
 
 // START: JoinPanes
 
@@ -15,10 +11,3 @@ func JoinPanes(list, pane string) string {
 }
 
 // END: JoinPanes
-
-// START: PlayerPanel
-
-// PlayerPanel is the right-hand panel; until a track has played it shows the Goremi art painted with t.
-func PlayerPanel(t theme.Theme) string { return PaintLogo(t) }
-
-// END: PlayerPanel

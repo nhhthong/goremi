@@ -1,8 +1,7 @@
-// Tests for smoothing the bar heights, drawing the bars as rows, and the random heights while no audio plays.
+// Tests for smoothing the bar heights and drawing the bars as rows.
 package ui
 
 import (
-	"math/rand"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -91,100 +90,3 @@ func TestSpectrumRowsEmptyWhenZero(t *testing.T) {
 }
 
 // END: TestSpectrumRowsEmptyWhenZero
-
-// START: TestSpectrumRowsFullAndCentred
-
-func TestSpectrumRowsFullAndCentred(t *testing.T) {
-	want := strings.Repeat(" ", 4) + strings.Repeat("█", 32) + strings.Repeat(" ", 4)
-	for i, r := range SpectrumRows(heightsOf(64)) {
-		if r != want {
-			t.Fatalf("row %d = %q, want %q", i, r, want)
-		}
-	}
-}
-
-// END: TestSpectrumRowsFullAndCentred
-
-// START: TestSpectrumRowsTopCell
-
-func TestSpectrumRowsTopCell(t *testing.T) {
-	var h [SpectrumBars]int
-	h[0] = 13
-	rows := SpectrumRows(h)
-	cell := func(row int) string { return string([]rune(rows[row])[4]) }
-	if cell(7) != "█" || cell(6) != "▅" {
-		t.Fatalf("bottom cell %q and the one above %q, want █ and ▅", cell(7), cell(6))
-	}
-	for r := 0; r < 6; r++ {
-		if cell(r) != " " {
-			t.Fatalf("row %d cell = %q, want blank", r, cell(r))
-		}
-	}
-}
-
-// END: TestSpectrumRowsTopCell
-
-// START: TestSpectrumRowsBoundaryHeights
-
-func TestSpectrumRowsBoundaryHeights(t *testing.T) {
-	var h [SpectrumBars]int
-	h[0], h[1] = 1, 8
-	rows := SpectrumRows(h)
-	for col, want := range map[int]string{4: "▁", 5: "█"} {
-		if got := string([]rune(rows[7])[col]); got != want {
-			t.Fatalf("bottom cell of column %d = %q, want %q", col, got, want)
-		}
-		if got := string([]rune(rows[6])[col]); got != " " {
-			t.Fatalf("cell above column %d = %q, want blank", col, got)
-		}
-	}
-}
-
-// END: TestSpectrumRowsBoundaryHeights
-
-// START: TestIdleHeightsMax
-
-func TestIdleHeightsMax(t *testing.T) {
-	asked := 0
-	got := IdleHeights(func(n int) int { asked = n; return n - 1 })
-	if asked != 4 {
-		t.Fatalf("bound asked = %d, want 4 (0 to 3)", asked)
-	}
-	if got != heightsOf(3) {
-		t.Fatalf("heights = %v, want all 3", got)
-	}
-}
-
-// END: TestIdleHeightsMax
-
-// START: TestIdleHeightsMin
-
-func TestIdleHeightsMin(t *testing.T) {
-	if got := IdleHeights(func(int) int { return 0 }); got != heightsOf(0) {
-		t.Fatalf("heights = %v, want all 0", got)
-	}
-}
-
-// END: TestIdleHeightsMin
-
-// START: TestIdleHeightsRandomWithinRange
-
-func TestIdleHeightsRandomWithinRange(t *testing.T) {
-	varied := false
-	for i := 0; i < 1000; i++ {
-		h := IdleHeights(rand.Intn)
-		for _, v := range h {
-			if v < 0 || v > 3 {
-				t.Fatalf("height %d outside 0 to 3", v)
-			}
-		}
-		if h != heightsOf(h[0]) {
-			varied = true
-		}
-	}
-	if !varied {
-		t.Fatal("the 32 heights were the same in all 1000 frames")
-	}
-}
-
-// END: TestIdleHeightsRandomWithinRange

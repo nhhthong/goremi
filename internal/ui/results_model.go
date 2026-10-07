@@ -47,6 +47,12 @@ func (r Results) ClearLoadErr() Results {
 	return r
 }
 
+// OnLoadMore tells whether the selection is on the "load more..." line.
+func (r Results) OnLoadMore() bool { return r.more && len(r.tracks) > 0 && r.selected == len(r.tracks) }
+
+// LineCount is the number of lines of the list: the tracks and the `load more...` line when there is one.
+func (r Results) LineCount() int { return r.lastLine() + 1 }
+
 // lastLine is the last line the selection can reach: the "load more..." line while there is one, else the last track.
 func (r Results) lastLine() int {
 	if r.more {

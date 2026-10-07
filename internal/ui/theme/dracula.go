@@ -7,6 +7,7 @@ package theme
 func Dracula() Theme {
 	return Theme{
 		Accent:   "#bd93f9",
+		Error:    "#ff5555",
 		Selected: "#44475a",
 		Muted:    "#6272a4",
 		Border:   "#6272a4",

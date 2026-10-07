@@ -21,7 +21,7 @@ func TestZeroResultsKeepFocusOnInput(t *testing.T) {
 // START: TestZeroResultsMessage
 
 func TestZeroResultsMessage(t *testing.T) {
-	if got, want := lineAfterSearch(viewLines(zeroResults())), `No results for "daft".`; got != want {
+	if got, want := lineAboveSearch(viewLines(zeroResults())), `No results for "daft".`; got != want {
 		t.Fatalf("line under Search: = %q, want %q", got, want)
 	}
 }
